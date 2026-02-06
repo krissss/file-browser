@@ -490,7 +490,8 @@ export default function SimpleFileList({ files, currentPath, onPathChange }: Sim
                               li: ({ node, ...props }) => (
                                 <li {...props} style={{ marginBottom: '0.25em' }} />
                               ),
-                              code: ({ node, inline, className, children, ...props }) => {
+                              code: ({ node, className, children, ...props }: any) => {
+                                const inline = (props as any).inline;
                                 const match = /language-(\w+)/.exec(className || '');
                                 const language = match ? match[1] : '';
 

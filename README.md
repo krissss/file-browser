@@ -93,6 +93,108 @@ pnpm build
 pnpm start
 ```
 
+## Docker 部署
+
+### 使用 Docker Compose（推荐）
+
+1. **构建镜像**（可选，使用预构建镜像）
+```bash
+docker build -t file-browser:local .
+```
+
+2. **配置环境变量**
+```bash
+# 复制示例配置文件
+cp .env.example .env
+
+# 编辑配置，设置要浏览的目录
+vim .env
+```
+
+3. **启动服务**
+```bash
+# 启动服务
+docker-compose up -d
+
+# 查看日志
+docker-compose logs -f
+
+# 停止服务
+docker-compose down
+```
+
+### 使用 Docker 直接运行
+
+```bash
+# 构建镜像
+docker build -t file-browser:latest .
+
+# 运行容器
+docker run -d \
+  --name file-browser \
+  -p 3000:3000 \
+  -e FILE_BROWSER_ROOT=/path/to/your/files \
+  -v /path/to/your/files:/data:ro \
+  krisss/file-browser:latest
+```
+
+### 从 Docker Hub 拉取镜像
+
+```bash
+docker pull krisss/file-browser:latest
+
+docker run -d \
+  --name file-browser \
+  -p 3000:3000 \
+  -e FILE_BROWSER_ROOT=/data \
+  -v /path/to/files:/data:ro \
+  krisss/file-browser:latest
+```
+
+### 使用 PM2 部署
+
+1. **安装 PM2**
+```bash
+npm install -g pm2
+```
+
+2. **创建 ecosystem.config.js**
+```javascript
+module.exports = {
+  apps: [{
+    name: 'file-browser',
+    script: 'node_modules/next/dist/bin/next',
+    args: 'start -p 3000',
+    instances: 1,
+    autorestart: true,
+    env: {
+      NODE_ENV: 'production',
+      PORT: 3000,
+      FILE_BROWSER_ROOT: '/path/to/your/files'
+    }
+  }]
+};
+```
+
+3. **启动服务**
+```bash
+# 构建
+pnpm build
+
+# 启动
+pm2 start ecosystem.config.js
+
+# 保存进程列表
+pm2 save
+
+# 查看状态
+pm2 status
+
+# 查看日志
+pm2 logs file-browser
+```
+
+
 ## 使用指南
 
 ### 基本操作
@@ -199,6 +301,7 @@ file-browser/
 |--------|------|--------|
 | `FILE_BROWSER_ROOT` | 文件系统根目录 | 项目目录 |
 | `PORT` | 应用端口 | 3000 |
+| `NODE_ENV` | 运行环境 | development |
 
 ## 开发指南
 
@@ -240,6 +343,28 @@ file-browser/
 - 暂不支持文件上传功能
 - 大于 1MB 的文本文件无法预览
 - 二进制文件无法预览
+
+## 发布版本
+
+### 创建版本标签并发布 Docker 镜像
+
+```bash
+# 1. 创建版本标签
+git tag v1.0.0
+
+# 2. 推送标签到 GitHub
+git push origin v1.0.0
+
+# 3. GitHub Actions 会自动：
+#    - 构建新的 Docker 镜像
+#    - 推送到 Docker Hub (krisss/file-browser:latest, :v1.0.0, :v1, :v1.0)
+```
+
+### 版本命名规范
+
+- 主版本：`v1.0.0` - 重大更新
+- 次版本：`v1.1.0` - 新功能
+- 修订版本：`v1.0.1` - Bug 修复
 
 ## 贡献
 

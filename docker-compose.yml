@@ -1,0 +1,48 @@
+version: '3.8'
+
+services:
+  file-browser:
+    image: krisss/file-browser:latest
+    container_name: file-browser
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    environment:
+      - NODE_ENV=production
+      - PORT=3000
+      - FILE_BROWSER_ROOT=/data
+    volumes:
+      # 将主机目录映射到容器的 /data 目录（只读模式更安全）
+      # 替换下面的路径为你想要浏览的目录
+      - /path/to/your/files:/data:ro
+      # 日志目录（可选）
+      - ./logs:/app/logs
+    # 健康检查
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:3000"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    networks:
+      - file-browser-network
+
+  # 可选：使用 Nginx 反向代理
+  # nginx:
+  #   image: nginx:alpine
+  #   container_name: file-browser-nginx
+  #   restart: unless-stopped
+  #   ports:
+  #     - "80:80"
+  #     - "443:443"
+  #   volumes:
+  #     - ./nginx.conf:/etc/nginx/nginx.conf:ro
+  #     - ./ssl:/etc/nginx/ssl:ro  # SSL 证书
+  #   depends_on:
+  #     - file-browser
+  #   networks:
+  #     - file-browser-network
+
+networks:
+  file-browser-network:
+    driver: bridge

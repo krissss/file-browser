@@ -1,0 +1,77 @@
+name: Docker Image CI/CD
+
+on:
+  # 推送到 master 分支时构建（可选，用于测试）
+  push:
+    branches: [master]
+  # 发布 Git tag 时构建并推送到 Docker Hub（主要触发方式）
+  push:
+    tags:
+      - 'v*.*.*'
+  # 允许手动触发
+  workflow_dispatch:
+
+env:
+  # Docker Hub 镜像名称
+  IMAGE_NAME: krisss/file-browser
+  # Docker Hub 用户名（如果与 repo owner 不同需要修改）
+  DOCKER_USERNAME: krisss
+
+jobs:
+  build-and-push:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+      id-token: write
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to Docker Hub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ env.DOCKER_USERNAME }}
+          password: ${{ secrets.DOCKER_HUB_TOKEN }}
+
+      - name: Extract metadata for Docker
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.IMAGE_NAME }}
+          tags: |
+            type=ref,event=branch
+            type=semver,pattern={{version}}
+            type=semver,pattern={{major}}.{{minor}}
+            type=semver,pattern={{major}}
+            type=raw,value=latest
+          flavor: |
+            latest=true
+
+      - name: Build and push Docker image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+          # 启用 GitHub Actions 缓存
+          # 设置构建参数
+          build-args: |
+            NEXT_TELEMETRY_DISABLED=1
+
+      - name: Update Docker Hub description
+        if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/')
+        uses: peter-evans/dockerhub-description@v3
+        with:
+          username: ${{ env.DOCKER_USERNAME }}
+          password: ${{ secrets.DOCKER_HUB_TOKEN }}
+          repository: ${{ env.IMAGE_NAME }}
+          short-description: "Modern web-based file system browser with preview capabilities"
+          readme: true

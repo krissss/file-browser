@@ -78,9 +78,11 @@ export default function FileList({ files, currentPath, onFileClick, onPathChange
                       <p className="text-sm font-medium text-[#e8eaed] group-hover:text-[#00d4ff] truncate transition-colors">
                         {dir.name}
                       </p>
-                      <p className="text-xs text-[#5f6368] mt-0.5">
-                        {dir.children?.length || 0} items
-                      </p>
+                      {dir.modified && (
+                        <p className="text-xs text-[#5f6368] mt-0.5">
+                          {new Date(dir.modified).toLocaleDateString()}
+                        </p>
+                      )}
                     </div>
                   </div>
                 </div>
