@@ -1,11 +1,8 @@
 name: Docker Image CI/CD
 
 on:
-  # 推送到 master 分支时构建（可选，用于测试）
   push:
     branches: [master]
-  # 发布 Git tag 时构建并推送到 Docker Hub（主要触发方式）
-  push:
     tags:
       - 'v*.*.*'
   # 允许手动触发
