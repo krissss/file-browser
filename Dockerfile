@@ -19,6 +19,7 @@ RUN apk add --no-cache curl
 COPY --from=build /out/file-browser /usr/local/bin/file-browser
 EXPOSE 3000
 ENV FILE_BROWSER_PATH=/data
+ENV FILE_BROWSER_HOST=0.0.0.0
 HEALTHCHECK --interval=30s --timeout=3s --start-period=10s --retries=3 \
   CMD curl -fsS http://127.0.0.1:3000/healthz >/dev/null || exit 1
 
