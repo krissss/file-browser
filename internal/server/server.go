@@ -2,16 +2,12 @@ package server
 
 import (
 	"bytes"
-	"embed"
 	"errors"
 	"io/fs"
 	"net/http"
 	"path"
 	"strings"
 )
-
-//go:embed web/dist/* web/dist/assets/*
-var embeddedDist embed.FS
 
 type Server struct {
 	cfg    Config
@@ -22,11 +18,15 @@ type Server struct {
 func New(cfg Config) (*Server, error) {
 	sub, err := fs.Sub(embeddedDist, "web/dist")
 	if err != nil {
-		return nil, err
+		if errors.Is(err, fs.ErrNotExist) {
+			sub = embeddedDist
+		} else {
+			return nil, err
+		}
 	}
 	index, err := fs.ReadFile(sub, "index.html")
 	if err != nil {
-		return nil, err
+		index = []byte("<!doctype html><html><body>file-browser</body></html>")
 	}
 
 	return &Server{

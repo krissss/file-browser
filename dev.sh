@@ -31,4 +31,8 @@ trap 'kill $AIR_PID' EXIT
 
 cd "$ROOT_DIR/web"
 
+if [ ! -d "node_modules" ]; then
+  pnpm install
+fi
+
 pnpm run dev -- --host "$HOST" --port "$WEB_PORT" --strictPort
