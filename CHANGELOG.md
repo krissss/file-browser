@@ -1,11 +1,18 @@
 # Changelog
 
-All notable changes to this project will be documented in this file.
+All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
-The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
-and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
+### [0.1.1](https://github.com/krissss/file-browser/compare/v0.1.0...v0.1.1) (2026-02-09)
 
-## [Unreleased]
+
+### Added
+
+* add changelog automation ([a122b71](https://github.com/krissss/file-browser/commit/a122b719390f90d545b69345bd73b7586fdc0c03))
+
+
+### Fixed
+
+* add tzdata to container ([c06f7d1](https://github.com/krissss/file-browser/commit/c06f7d156a3fb0f5953e93a572b83e60fed5a624))
 
 ## [0.1.0] - 2026-02-09
 
