@@ -3,6 +3,8 @@ import { computed, nextTick, onMounted, reactive, ref, watch } from 'vue';
 import { renderMarkdown } from './markdown';
 import { highlightCode, highlightMarkdownBlocks } from './highlight';
 import { Download, Maximize2, Minimize2, Moon, Sun } from 'lucide-vue-next';
+import markdownLight from 'github-markdown-css/github-markdown.css?url';
+import markdownDark from 'github-markdown-css/github-markdown-dark.css?url';
 
 import {
   entryExtension,
@@ -56,6 +58,7 @@ const previewCardRef = ref<HTMLElement | null>(null);
 const previewMaximized = ref(false);
 const chunkSize = 64 * 1024;
 const hljsThemeId = 'hljs-theme';
+const markdownThemeId = 'markdown-theme';
 
 function setHljsTheme(next: 'light' | 'dark') {
   const href = next === 'dark' ? '/hljs-github-dark.css' : '/hljs-github.css';
@@ -69,11 +72,24 @@ function setHljsTheme(next: 'light' | 'dark') {
   link.href = href;
 }
 
+function setMarkdownTheme(next: 'light' | 'dark') {
+  const href = next === 'dark' ? markdownDark : markdownLight;
+  let link = document.getElementById(markdownThemeId) as HTMLLinkElement | null;
+  if (!link) {
+    link = document.createElement('link');
+    link.id = markdownThemeId;
+    link.rel = 'stylesheet';
+    document.head.appendChild(link);
+  }
+  link.href = href;
+}
+
 function applyTheme(next: 'light' | 'dark') {
   theme.value = next;
   document.documentElement.setAttribute('data-theme', next);
   localStorage.setItem('file-browser-theme', next);
   setHljsTheme(next);
+  setMarkdownTheme(next);
 }
 
 function toggleTheme() {

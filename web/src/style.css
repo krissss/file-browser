@@ -317,6 +317,7 @@ body {
 
 [data-theme='dark'] .markdown-body {
   color: var(--text);
+  background: transparent;
 }
 
 .preview-card pre {
