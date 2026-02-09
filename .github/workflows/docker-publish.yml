@@ -58,10 +58,6 @@ jobs:
           labels: ${{ steps.meta.outputs.labels }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
-          # 启用 GitHub Actions 缓存
-          # 设置构建参数
-          build-args: |
-            NEXT_TELEMETRY_DISABLED=1
 
       - name: Update Docker Hub description
         if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/')
@@ -70,5 +66,5 @@ jobs:
           username: ${{ env.DOCKER_USERNAME }}
           password: ${{ secrets.DOCKER_HUB_TOKEN }}
           repository: ${{ env.IMAGE_NAME }}
-          short-description: "Modern web-based file system browser with preview capabilities"
+          short-description: "Single-binary Go + Vue file browser with preview"
           readme: true

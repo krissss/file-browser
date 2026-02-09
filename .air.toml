@@ -1,0 +1,13 @@
+root = "."
+
+tmp_dir = "runtime"
+
+[build]
+  cmd = "go build -o runtime/file-browser-dev ./cmd/file-browser"
+  entrypoint = ["runtime/file-browser-dev"]
+  include_ext = ["go", "mod", "sum"]
+  exclude_dir = ["web", "node_modules", ".git", "internal/server/web/dist"]
+  delay = 200
+
+[log]
+  time = true

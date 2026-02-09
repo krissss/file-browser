@@ -1,68 +1,22 @@
-# Multi-stage build for optimized production image
-# Stage 1: Dependencies
-FROM node:24-alpine AS deps
+FROM node:24-alpine AS web
+ENV CI=true
 WORKDIR /app
+COPY web ./web
+RUN corepack enable && mkdir -p /app/internal/server/web/dist \
+  && cd web && pnpm install --frozen-lockfile && pnpm run build
 
-# Enable corepack to use pnpm version from package.json
-RUN corepack enable
-
-# Copy dependency files
-COPY package.json pnpm-lock.yaml ./
-
-# Install dependencies
-RUN pnpm install --frozen-lockfile
-
-# Stage 2: Builder
-FROM node:24-alpine AS builder
+FROM golang:1.25-alpine AS build
 WORKDIR /app
+COPY go.mod ./
+COPY cmd ./cmd
+COPY internal ./internal
+COPY --from=web /app/internal/server/web/dist ./internal/server/web/dist
+RUN go build -o /out/file-browser ./cmd/file-browser
 
-# Enable corepack to use pnpm version from package.json
-RUN corepack enable
-
-# Copy dependencies from deps stage
-COPY --from=deps /app/node_modules ./node_modules
-COPY . .
-
-# Disable telemetry during build
-ENV NEXT_TELEMETRY_DISABLED 1
-
-# Build application
-RUN pnpm build
-
-# Stage 3: Runner
-FROM node:24-alpine AS runner
+FROM alpine:3.19
 WORKDIR /app
-
-ENV NODE_ENV production
-ENV NEXT_TELEMETRY_DISABLED 1
-
-# Create a non-root user with explicit UID/GID
-RUN addgroup --system --gid 1001 nodejs && \
-    adduser --system --uid 1001 nextjs
-
-# Copy necessary files from builder
-COPY --from=builder /app/public ./public
-COPY --from=builder /app/package.json ./package.json
-
-# Create .next directory with correct permissions
-RUN mkdir -p .next && chown nextjs:nodejs .next
-
-# Copy standalone output and static files
-COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
-COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
-
-# Set the correct permission for prerender cache
-RUN mkdir -p .next/cache && chown nextjs:nodejs .next/cache
-
-# Switch to non-root user
-USER nextjs
-
-# Expose port
+COPY --from=build /out/file-browser /usr/local/bin/file-browser
 EXPOSE 3000
+ENV FILE_BROWSER_PATH=/data
 
-# Set environment
-ENV PORT 3000
-ENV HOSTNAME "0.0.0.0"
-
-# Start the application
-CMD ["node", "server.js"]
+ENTRYPOINT ["file-browser"]
