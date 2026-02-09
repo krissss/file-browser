@@ -67,4 +67,4 @@ jobs:
           password: ${{ secrets.DOCKER_HUB_TOKEN }}
           repository: ${{ env.IMAGE_NAME }}
           short-description: "Single-binary Go + Vue file browser with preview"
-          readme: true
+          readme-filepath: README.md
