@@ -15,7 +15,7 @@ RUN go build -o /out/file-browser ./cmd/file-browser
 
 FROM alpine:3.19
 WORKDIR /app
-RUN apk add --no-cache curl
+RUN apk add --no-cache curl tzdata
 COPY --from=build /out/file-browser /usr/local/bin/file-browser
 EXPOSE 3000
 ENV FILE_BROWSER_PATH=/data
