@@ -6,3 +6,4 @@ file-browser
 runtime/
 !runtime/.gitkeep
 /docs/plans/
+/node_modules/

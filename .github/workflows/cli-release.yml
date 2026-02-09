@@ -61,7 +61,37 @@ jobs:
           out="dist/file-browser-${GOOS}-${GOARCH}${suffix}"
           go build -o "$out" ./cmd/file-browser
 
+      - name: Prepare release notes
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          import os
+
+          version = os.environ.get("GITHUB_REF_NAME", "").strip()
+          if not version:
+            raise SystemExit("missing tag name")
+          text = Path("CHANGELOG.md").read_text(encoding="utf-8")
+          lines = text.splitlines()
+          start = None
+          end = None
+          for i, line in enumerate(lines):
+            if line.startswith(f"## [{version}]"):
+              start = i
+              continue
+            if start is not None and line.startswith("## [") and i > start:
+              end = i
+              break
+          if start is None:
+            raise SystemExit(f"version section not found: {version}")
+          section = lines[start:end]
+          section = [line for line in section if not line.startswith("[")]
+          while section and section[-1].strip() == "":
+            section.pop()
+          Path("/tmp/release-notes.md").write_text("\n".join(section), encoding="utf-8")
+          PY
+
       - name: Upload release assets
         uses: softprops/action-gh-release@v2
         with:
+          body_path: /tmp/release-notes.md
           files: dist/*

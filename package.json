@@ -1,0 +1,11 @@
+{
+  "name": "file-browser-release",
+  "private": true,
+  "version": "0.1.0",
+  "scripts": {
+    "release": "standard-version"
+  },
+  "devDependencies": {
+    "standard-version": "^9.5.0"
+  }
+}
