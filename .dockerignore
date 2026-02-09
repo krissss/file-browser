@@ -1,61 +1,18 @@
-# Dependencies
-node_modules
-npm-debug.log*
-yarn-error.log*
-.pnpm-debug.log*
-
-# Testing
-coverage
-
-# Next.js
-.next/
-out/
-build
-dist
-
-# Production
-*.tsbuildinfo
-next-env.d.ts
-
-# Misc
-.DS_Store
-*.pem
-
-# Debug
-*.log
-
-# Environment files
-.env*
-.env*.local
-!.env.example
-
-# Vercel
-.vercel
-
-# IDE
-.vscode/
-.idea/
-*.swp
-*.swo
-*~
-
-# OS
-Thumbs.db
-
-# Git
 .git/
 .gitignore
+.DS_Store
+Thumbs.db
 
-# Docker
-Dockerfile
-.dockerignore
-docker-compose*.yml
-
-# Documentation
-README.md
-docs/
-.claude/
-
-# Logs
-logs/
 *.log
+
+.env*
+!.env.example
+
+node_modules/
+web/node_modules/
+web/dist/
+internal/server/web/dist/
+
+runtime/
+.playwright-cli/
+docs/
