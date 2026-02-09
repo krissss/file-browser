@@ -42,6 +42,7 @@ func (s *Server) Handler() http.Handler {
 	mux.HandleFunc("/api/preview", s.handlePreview)
 	mux.HandleFunc("/api/image", s.handleImage)
 	mux.HandleFunc("/api/download", s.handleDownload)
+	mux.HandleFunc("/healthz", s.handleHealth)
 	mux.HandleFunc("/", s.handleStatic)
 	return mux
 }
