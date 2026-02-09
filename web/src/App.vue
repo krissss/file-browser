@@ -1,69 +1,19 @@
 <script setup lang="ts">
 import { computed, nextTick, onMounted, reactive, ref, watch } from 'vue';
-import MarkdownIt from 'markdown-it';
-import DOMPurify from 'dompurify';
-import hljs from 'highlight.js/lib/common';
+import { renderMarkdown } from './markdown';
+import { highlightCode, highlightMarkdownBlocks } from './highlight';
 import { Download, Maximize2, Minimize2, Moon, Sun } from 'lucide-vue-next';
-import bash from 'highlight.js/lib/languages/bash';
-import c from 'highlight.js/lib/languages/c';
-import cpp from 'highlight.js/lib/languages/cpp';
-import csharp from 'highlight.js/lib/languages/csharp';
-import dockerfile from 'highlight.js/lib/languages/dockerfile';
-import go from 'highlight.js/lib/languages/go';
-import graphql from 'highlight.js/lib/languages/graphql';
-import ini from 'highlight.js/lib/languages/ini';
-import java from 'highlight.js/lib/languages/java';
-import javascript from 'highlight.js/lib/languages/javascript';
-import json from 'highlight.js/lib/languages/json';
-import kotlin from 'highlight.js/lib/languages/kotlin';
-import lua from 'highlight.js/lib/languages/lua';
-import makefile from 'highlight.js/lib/languages/makefile';
-import php from 'highlight.js/lib/languages/php';
-import plaintext from 'highlight.js/lib/languages/plaintext';
-import protobuf from 'highlight.js/lib/languages/protobuf';
-import python from 'highlight.js/lib/languages/python';
-import ruby from 'highlight.js/lib/languages/ruby';
-import rust from 'highlight.js/lib/languages/rust';
-import sql from 'highlight.js/lib/languages/sql';
-import swift from 'highlight.js/lib/languages/swift';
-import typescript from 'highlight.js/lib/languages/typescript';
-import xml from 'highlight.js/lib/languages/xml';
-import yaml from 'highlight.js/lib/languages/yaml';
 
-hljs.registerLanguage('bash', bash);
-hljs.registerLanguage('c', c);
-hljs.registerLanguage('cpp', cpp);
-hljs.registerLanguage('cs', csharp);
-hljs.registerLanguage('dockerfile', dockerfile);
-hljs.registerLanguage('go', go);
-hljs.registerLanguage('graphql', graphql);
-hljs.registerLanguage('ini', ini);
-hljs.registerLanguage('java', java);
-hljs.registerLanguage('javascript', javascript);
-hljs.registerLanguage('json', json);
-hljs.registerLanguage('kotlin', kotlin);
-hljs.registerLanguage('lua', lua);
-hljs.registerLanguage('makefile', makefile);
-hljs.registerLanguage('php', php);
-hljs.registerLanguage('plaintext', plaintext);
-hljs.registerLanguage('protobuf', protobuf);
-hljs.registerLanguage('python', python);
-hljs.registerLanguage('ruby', ruby);
-hljs.registerLanguage('rust', rust);
-hljs.registerLanguage('sql', sql);
-hljs.registerLanguage('swift', swift);
-hljs.registerLanguage('typescript', typescript);
-hljs.registerLanguage('xml', xml);
-hljs.registerLanguage('yaml', yaml);
-
-type FileEntry = {
-  name: string;
-  path: string;
-  type: 'file' | 'dir';
-  extension?: string;
-  size: number;
-  modified: string;
-};
+import {
+  entryExtension,
+  fileExtensionFromName,
+  fileIcon,
+  isBinaryFile,
+  isCode,
+  isImage,
+  isMarkdown,
+  type FileEntry
+} from './file-types';
 
 type PreviewState = {
   content: string;
@@ -149,29 +99,20 @@ const previewMode = computed(() => {
   if (!state.selected) {
     return 'none';
   }
-  const ext = (state.selected.extension || '').toLowerCase();
+  const ext = entryExtension(state.selected).toLowerCase();
   if (isImage(ext)) return 'image';
   if (isMarkdown(ext)) return 'markdown';
   if (isCode(ext, state.selected.name)) return 'code';
   return 'text';
 });
 
-const markdown = new MarkdownIt({
-  html: false,
-  linkify: true,
-  breaks: true
-});
-
 const previewHtml = computed(() => {
   if (previewMode.value === 'markdown') {
-    return DOMPurify.sanitize(markdown.render(preview.content));
+    return renderMarkdown(preview.content);
   }
   if (previewMode.value === 'code') {
     const lang = codeLanguage(state.selected);
-    const highlighted = lang
-      ? hljs.highlight(preview.content, { language: lang }).value
-      : hljs.highlightAuto(preview.content).value;
-    return DOMPurify.sanitize(`<pre><code class="hljs">${highlighted}</code></pre>`);
+    return highlightCode(preview.content, lang);
   }
   return '';
 });
@@ -180,10 +121,7 @@ function applyCodeHighlight() {
   if (preview.view !== 'render') return;
   if (previewMode.value !== 'markdown') return;
   nextTick(() => {
-    const blocks = document.querySelectorAll('.markdown pre code');
-    blocks.forEach((block) => {
-      hljs.highlightElement(block as HTMLElement);
-    });
+    highlightMarkdownBlocks();
   });
 }
 
@@ -196,7 +134,11 @@ async function loadEntries(path: string) {
     preview.error = '无法加载目录';
     return;
   }
-  state.entries = await response.json();
+  const items: FileEntry[] = await response.json();
+  state.entries = items.map((entry) => ({
+    ...entry,
+    extension: entry.extension || fileExtensionFromName(entry.name)
+  }));
 }
 
 function previewReset() {
@@ -221,7 +163,7 @@ async function selectEntry(entry: FileEntry) {
   }
   state.selected = entry;
   previewReset();
-  if (isImage(entry.extension || '')) {
+  if (isImage(entryExtension(entry))) {
     return;
   }
   await fetchPreview(entry.path);
@@ -265,7 +207,7 @@ async function fetchPreview(path: string, append = false) {
   preview.offset = (payload.offset || 0) + (payload.limit || payload.content.length);
   preview.limit = payload.limit || preview.limit;
   preview.hasMore = payload.hasMore;
-  preview.isBinary = !!payload.isBinary;
+  preview.isBinary = state.selected ? isBinaryFile(state.selected) : false;
   preview.loading = false;
   preview.appending = false;
 
@@ -295,33 +237,12 @@ function formatDate(dateStr: string) {
   return date.toLocaleString();
 }
 
-function isMarkdown(ext: string) {
-  return ['md', 'markdown'].includes(ext.toLowerCase());
-}
-
-function isCode(ext: string, name?: string) {
-  const lowerName = name ? name.toLowerCase() : '';
-  if (lowerName === 'dockerfile' || lowerName.startsWith('dockerfile.')) return true;
-  if (lowerName === 'makefile' || lowerName.startsWith('makefile.')) return true;
-  return [
-    'js', 'jsx', 'ts', 'tsx', 'mjs', 'cjs', 'py', 'rb', 'go', 'rs', 'java', 'c', 'cpp', 'h',
-    'css', 'html', 'xml', 'yaml', 'yml', 'json', 'toml', 'ini', 'sh', 'bash', 'zsh', 'sql',
-    'dockerfile', 'proto', 'graphql', 'gql', 'vue', 'svelte', 'astro',
-    'cs', 'kt', 'kts', 'swift', 'php', 'lua', 'scala', 'groovy',
-    'clj', 'cljs', 'cljc', 'gradle', 'properties', 'makefile'
-  ].includes(ext.toLowerCase());
-}
-
-function isImage(ext: string) {
-  return ['jpg', 'jpeg', 'png', 'gif', 'svg', 'webp', 'bmp', 'ico'].includes(ext.toLowerCase());
-}
-
 function codeLanguage(file: FileEntry | null) {
   if (!file) return '';
   const name = file.name.toLowerCase();
   if (name === 'dockerfile' || name.startsWith('dockerfile.')) return 'dockerfile';
   if (name === 'makefile' || name.startsWith('makefile.')) return 'makefile';
-  const ext = (file.extension || '').toLowerCase();
+  const ext = entryExtension(file).toLowerCase();
   if (ext === 'yml') return 'yaml';
   if (ext === 'js') return 'javascript';
   if (ext === 'ts') return 'typescript';
@@ -347,7 +268,7 @@ const selectedDownload = computed(() => {
 
 const selectedImage = computed(() => {
   if (!state.selected || state.selected.type !== 'file') return null;
-  if (!isImage(state.selected.extension || '')) return null;
+  if (!isImage(entryExtension(state.selected))) return null;
   return `/api/image?path=${encodeURIComponent(state.selected.path)}`;
 });
 
@@ -401,7 +322,7 @@ watch([() => preview.content, () => preview.view, () => previewMode.value], () =
           :class="{ active: state.selected?.path === entry.path }"
           @click="selectEntry(entry)"
         >
-          <div>{{ entry.type === 'dir' ? '📁' : '📄' }}</div>
+          <component :is="fileIcon(entry)" class="file-icon" :size="18" :stroke-width="1.8" />
           <div class="file-meta">
             <strong>{{ entry.name }}</strong>
             <small>{{ entry.type === 'dir' ? '目录' : formatSize(entry.size) }}</small>

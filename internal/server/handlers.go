@@ -6,7 +6,6 @@ import (
 	"net/http"
 	"os"
 	"path"
-	"path/filepath"
 	"sort"
 	"strconv"
 	"strings"
@@ -14,12 +13,11 @@ import (
 )
 
 type fileEntry struct {
-	Name      string `json:"name"`
-	Path      string `json:"path"`
-	Type      string `json:"type"`
-	Extension string `json:"extension,omitempty"`
-	Size      int64  `json:"size"`
-	Modified  string `json:"modified"`
+	Name     string `json:"name"`
+	Path     string `json:"path"`
+	Type     string `json:"type"`
+	Size     int64  `json:"size"`
+	Modified string `json:"modified"`
 }
 
 type previewResponse struct {
@@ -28,8 +26,6 @@ type previewResponse struct {
 	Content  string `json:"content"`
 	Size     int64  `json:"size"`
 	Modified string `json:"modified"`
-	Type     string `json:"type"`
-	IsBinary bool   `json:"isBinary"`
 	Offset   int64  `json:"offset,omitempty"`
 	Limit    int64  `json:"limit,omitempty"`
 	HasMore  bool   `json:"hasMore"`
@@ -76,7 +72,6 @@ func (s *Server) handleFiles(w http.ResponseWriter, r *http.Request) {
 		} else {
 			item.Type = "file"
 			item.Size = info.Size()
-			item.Extension = fileExtension(entry.Name())
 		}
 		items = append(items, item)
 	}
@@ -113,8 +108,6 @@ func (s *Server) handlePreview(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusBadRequest, "NOT_A_FILE", "path is a directory")
 		return
 	}
-
-	ext := fileExtension(info.Name())
 
 	offset, limit, err := parseOffsetLimit(r, s.cfg.PreviewMax)
 	if err != nil {
@@ -162,8 +155,6 @@ func (s *Server) handlePreview(w http.ResponseWriter, r *http.Request) {
 		Content:  string(content[:n]),
 		Size:     info.Size(),
 		Modified: info.ModTime().UTC().Format(time.RFC3339),
-		Type:     ext,
-		IsBinary: !isTextFile(ext),
 		Offset:   offset,
 		Limit:    readLimit,
 		HasMore:  offset+int64(n) < info.Size(),
@@ -192,12 +183,6 @@ func (s *Server) handleImage(w http.ResponseWriter, r *http.Request) {
 	}
 	if info.IsDir() {
 		writeError(w, http.StatusBadRequest, "NOT_A_FILE", "path is a directory")
-		return
-	}
-
-	ext := strings.TrimPrefix(strings.ToLower(filepath.Ext(info.Name())), ".")
-	if !isImageFile(ext) {
-		writeError(w, http.StatusUnsupportedMediaType, "UNSUPPORTED_IMAGE", "file is not a supported image")
 		return
 	}
 
