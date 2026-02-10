@@ -61,6 +61,25 @@ jobs:
           out="dist/file-browser-${GOOS}-${GOARCH}${suffix}"
           go build -o "$out" ./cmd/file-browser
 
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: file-browser-${{ matrix.os }}-${{ matrix.arch }}
+          path: dist/*
+          retention-days: 1
+
+  release:
+    needs: build-cli
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: dist
+
       - name: Prepare release notes
         run: |
           python3 - <<'PY'
@@ -100,4 +119,4 @@ jobs:
         uses: softprops/action-gh-release@v2
         with:
           body_path: /tmp/release-notes.md
-          files: dist/*
+          files: dist/*/*
