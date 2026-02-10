@@ -1,5 +1,13 @@
 # File Browser (Go + Vue)
 
+[![Go Version](https://img.shields.io/badge/Go-1.23+-00ADD8?style=flat&logo=go)](https://go.dev/)
+[![Vue Version](https://img.shields.io/badge/Vue-3.5+-4FC08D?style=flat&logo=vue.js&logoColor=white)](https://vuejs.org/)
+[![License](https://img.shields.io/github/license/krissss/file-browser)](LICENSE)
+[![Release](https://img.shields.io/github/v/release/krissss/file-browser)](https://github.com/krissss/file-browser/releases/latest)
+[![Docker](https://img.shields.io/docker/v/krisss/file-browser?style=flat&logo=docker)](https://hub.docker.com/r/krisss/file-browser)
+[![Docker Pulls](https://img.shields.io/docker/pulls/krisss/file-browser?style=flat&logo=docker)](https://hub.docker.com/r/krisss/file-browser)
+[![GitHub Issues](https://img.shields.io/github/issues/krissss/file-browser)](https://github.com/krissss/file-browser/issues)
+
 一个单文件可执行的本地文件浏览器：Go 标准库后端 + Vue 3 前端，内嵌静态资源，`file-browser --path=./ --port=3000` 即可启动服务。
 
 ## 功能
