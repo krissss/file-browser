@@ -2,6 +2,14 @@
 
 All notable changes to this project will be documented in this file.
 
+## [v0.1.3] - 2026-02-10
+
+### Fixed
+- (ci) 避免 CLI 发布工作流中的竞态条件
+
+### Changed
+- (release) 简化发布配置，移除包管理相关文件
+
 ## [v0.1.2] - 2026-02-10
 
 ### Changed
@@ -32,3 +40,9 @@ All notable changes to this project will be documented in this file.
 
 ### Changed
 - 更新 README 与构建/开发脚本，以适配 Go + Vue 方案。
+
+[Unreleased]: https://github.com/krissss/file-browser/compare/v0.1.3...HEAD
+[v0.1.3]: https://github.com/krissss/file-browser/compare/v0.1.2...v0.1.3
+[v0.1.2]: https://github.com/krissss/file-browser/compare/v0.1.1...v0.1.2
+[v0.1.1]: https://github.com/krissss/file-browser/compare/v0.1.0...v0.1.1
+[v0.1.0]: https://github.com/krissss/file-browser/releases/tag/v0.1.0
