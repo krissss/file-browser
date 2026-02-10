@@ -2,6 +2,19 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+### [0.1.2](https://github.com/krissss/file-browser/compare/v0.1.1...v0.1.2) (2026-02-10)
+
+
+### Changed
+
+* **web:** split file typing and preview renderers ([84014c6](https://github.com/krissss/file-browser/commit/84014c6ecc9e01b3576f79add88b2d7c734b57b9))
+
+
+### Fixed
+
+* **dev:** allow running without embedded dist ([77a16cb](https://github.com/krissss/file-browser/commit/77a16cb9a000024116c3a94ac4b4f77788bbbd3e))
+* **web:** align markdown theme with dark mode ([c4bea6f](https://github.com/krissss/file-browser/commit/c4bea6f34ec26ce9de05e6e3e4e9b829c662b7c6))
+
 ### [0.1.1](https://github.com/krissss/file-browser/compare/v0.1.0...v0.1.1) (2026-02-09)
 
 
