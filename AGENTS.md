@@ -19,12 +19,6 @@
 - 构建：`./build.sh`
 - 前端：`cd web && pnpm run dev`
 
-## 版本与更新日志
-- 使用 `standard-version` 生成版本与更新日志：`pnpm exec standard-version --release-as patch|minor|major`
-- 执行后会更新 `CHANGELOG.md`、创建 release commit 并打 tag
-- 推送：`git push --follow-tags origin master`
-- CI 会根据 tag 生成 GitHub Release，并从 `CHANGELOG.md` 读取对应版本段落
-
 ## 注意事项
 - `web/` 依赖使用 `pnpm` 管理
 - `internal/server/web/dist/` 为构建产物，不纳入版本控制

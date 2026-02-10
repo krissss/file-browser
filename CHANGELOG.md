@@ -1,33 +1,29 @@
 # Changelog
 
-All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
+All notable changes to this project will be documented in this file.
 
-### [0.1.2](https://github.com/krissss/file-browser/compare/v0.1.1...v0.1.2) (2026-02-10)
-
+## [v0.1.2] - 2026-02-10
 
 ### Changed
-
-* **web:** split file typing and preview renderers ([84014c6](https://github.com/krissss/file-browser/commit/84014c6ecc9e01b3576f79add88b2d7c734b57b9))
-
+- (web) 拆分文件类型识别和预览渲染器
 
 ### Fixed
+- 支持带 v 前缀的版本号格式
+- (dev) 允许在没有内嵌构建产物的情况下运行
+- (web) 修复 Markdown 主题与暗黑模式对齐问题
 
-* **dev:** allow running without embedded dist ([77a16cb](https://github.com/krissss/file-browser/commit/77a16cb9a000024116c3a94ac4b4f77788bbbd3e))
-* **web:** align markdown theme with dark mode ([c4bea6f](https://github.com/krissss/file-browser/commit/c4bea6f34ec26ce9de05e6e3e4e9b829c662b7c6))
-
-### [0.1.1](https://github.com/krissss/file-browser/compare/v0.1.0...v0.1.1) (2026-02-09)
-
+## [v0.1.1] - 2026-02-09
 
 ### Added
+- 添加 Changelog 自动化工具和发布流程
 
-* add changelog automation ([a122b71](https://github.com/krissss/file-browser/commit/a122b719390f90d545b69345bd73b7586fdc0c03))
-
+### Changed
+- 在 AGENTS.md 中添加发布流程说明
 
 ### Fixed
+- 容器中添加 tzdata 时区数据，使 TZ 环境变量生效
 
-* add tzdata to container ([c06f7d1](https://github.com/krissss/file-browser/commit/c06f7d156a3fb0f5953e93a572b83e60fed5a624))
-
-## [0.1.0] - 2026-02-09
+## [v0.1.0] - 2026-02-09
 
 ### Added
 - Go + Vue 单文件应用，支持文件预览、下载与主题切换。
@@ -36,6 +32,3 @@ All notable changes to this project will be documented in this file. See [standa
 
 ### Changed
 - 更新 README 与构建/开发脚本，以适配 Go + Vue 方案。
-
-[Unreleased]: https://github.com/krissss/file-browser/compare/v0.1.0...HEAD
-[0.1.0]: https://github.com/krissss/file-browser/compare/ae4dc48...v0.1.0
