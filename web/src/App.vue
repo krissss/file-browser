@@ -3,7 +3,7 @@ import { computed, nextTick, onMounted, onUnmounted, reactive, ref, watch } from
 import { useRoute, useRouter } from 'vue-router';
 import { renderMarkdown } from './markdown';
 import { highlightCode, highlightMarkdownBlocks } from './highlight';
-import { Download, Maximize2, Minimize2, Moon, Sun } from 'lucide-vue-next';
+import { Download, Maximize2, Minimize2, Moon, Search, Sun, X } from 'lucide-vue-next';
 import markdownLight from 'github-markdown-css/github-markdown-light.css?url';
 import markdownDark from 'github-markdown-css/github-markdown-dark.css?url';
 
@@ -42,6 +42,16 @@ const state = reactive({
   selected: null as FileEntry | null,
   initialized: false
 });
+
+const search = reactive({
+  query: '',
+  results: [] as FileEntry[],
+  isSearching: false,
+  loading: false,
+  recursive: false
+});
+
+let searchTimeout: ReturnType<typeof setTimeout> | null = null;
 
 const preview = reactive<PreviewState>({
   content: '',
@@ -116,6 +126,47 @@ const breadcrumbs = computed(() => {
   return crumbs;
 });
 
+const displayEntries = computed(() => {
+  return search.isSearching ? search.results : state.entries;
+});
+
+function getRelativePath(entry: FileEntry): string {
+  if (!search.recursive || !search.isSearching) return '';
+  const basePath = state.currentPath === '/' ? '' : state.currentPath;
+  let relPath = entry.path;
+  if (relPath.startsWith(basePath)) {
+    relPath = relPath.slice(basePath.length);
+    if (relPath.startsWith('/')) relPath = relPath.slice(1);
+  }
+
+  // 对于目录，显示完整相对路径
+  // 对于文件，显示文件所在的目录
+  const parts = relPath.split('/');
+  if (entry.type === 'file' && parts.length > 1) {
+    parts.pop();
+  }
+
+  if (parts.length === 0) return '';
+
+  const fullPath = parts.join('/');
+
+  // 智能截断：保留开头和结尾，中间省略
+  const maxLen = 35;
+  if (fullPath.length <= maxLen) {
+    return fullPath;
+  }
+
+  // 尝试保留最后 3 级目录
+  const lastParts = parts.slice(-3).join('/');
+  if (lastParts.length <= maxLen - 3) {
+    return '.../' + lastParts;
+  }
+
+  // 只保留最后 2 级
+  const last2 = parts.slice(-2).join('/');
+  return '.../' + last2;
+}
+
 const previewMode = computed(() => {
   if (!state.selected) {
     return 'none';
@@ -162,6 +213,60 @@ async function loadEntries(path: string) {
   }));
 }
 
+function clearSearch() {
+  search.query = '';
+  search.results = [];
+  search.isSearching = false;
+  search.loading = false;
+  if (searchTimeout) {
+    clearTimeout(searchTimeout);
+    searchTimeout = null;
+  }
+}
+
+async function performSearch() {
+  if (!search.query.trim()) {
+    search.isSearching = false;
+    search.results = [];
+    return;
+  }
+
+  search.loading = true;
+  search.isSearching = true;
+  state.selected = null;
+  previewReset();
+
+  const recursiveParam = search.recursive ? 'true' : 'false';
+  const response = await fetch(
+    `/api/search?path=${encodeURIComponent(state.currentPath)}&q=${encodeURIComponent(search.query)}&recursive=${recursiveParam}`
+  );
+
+  if (response.ok) {
+    const items: FileEntry[] = await response.json();
+    search.results = items.map((entry) => ({
+      ...entry,
+      extension: entry.extension || fileExtensionFromName(entry.name)
+    }));
+  }
+  search.loading = false;
+}
+
+function debouncedSearch() {
+  if (searchTimeout) {
+    clearTimeout(searchTimeout);
+  }
+  searchTimeout = setTimeout(() => {
+    performSearch();
+  }, 300);
+}
+
+function toggleSearchRecursive() {
+  search.recursive = !search.recursive;
+  if (search.query.trim()) {
+    performSearch();
+  }
+}
+
 function previewReset() {
   preview.content = '';
   preview.loading = false;
@@ -179,8 +284,9 @@ function previewReset() {
 
 async function selectEntry(entry: FileEntry, updateRoute = true) {
   if (entry.type === 'dir') {
+    clearSearch();
     if (updateRoute) {
-      router.push({ path: '/', query: { dir: entry.path } });
+      router.push({ path: '/', query: { dir: formatPath(entry.path) } });
     } else {
       await loadEntries(entry.path);
     }
@@ -189,7 +295,7 @@ async function selectEntry(entry: FileEntry, updateRoute = true) {
   state.selected = entry;
   previewReset();
   if (updateRoute) {
-    router.push({ path: '/', query: { dir: state.currentPath, file: entry.path } });
+    router.push({ path: '/', query: { dir: formatPath(state.currentPath), file: formatPath(entry.path) } });
   }
   if (isImage(entryExtension(entry))) {
     return;
@@ -272,6 +378,16 @@ async function fetchPreview(path: string, append = false) {
   preview.loading = false;
   preview.appending = false;
 
+  // 更新 state.selected 的大小和时间（如果之前没有）
+  if (state.selected && !append) {
+    if (payload.size !== undefined) {
+      state.selected.size = payload.size;
+    }
+    if (payload.modified) {
+      state.selected.modified = payload.modified;
+    }
+  }
+
   if (append && previewCard) {
     requestAnimationFrame(() => {
       previewCard.scrollTop = prevScrollTop;
@@ -298,6 +414,11 @@ function formatDate(dateStr: string) {
   return date.toLocaleString();
 }
 
+function formatPath(path: string): string {
+  // 去掉开头的多个 /
+  return path.replace(/^\/+/, '/');
+}
+
 function codeLanguage(file: FileEntry | null) {
   if (!file) return '';
   const name = file.name.toLowerCase();
@@ -316,8 +437,8 @@ const selectedDownload = computed(() => {
 });
 
 const selectedImage = computed(() => {
-  if (!state.selected || state.selected.type !== 'file') return null;
-  if (!isImage(entryExtension(state.selected))) return null;
+  if (!state.selected || state.selected.type !== 'file') return undefined;
+  if (!isImage(entryExtension(state.selected))) return undefined;
   return `/api/image?path=${encodeURIComponent(state.selected.path)}`;
 });
 
@@ -406,21 +527,88 @@ watch([() => preview.content, () => preview.view, () => previewMode.value], () =
         </template>
       </div>
 
-      <div class="list">
-        <div
-          v-for="entry in state.entries"
-          :key="entry.path"
-          class="list-item"
-          :class="{ active: state.selected?.path === entry.path }"
-          @click="selectEntry(entry)"
+      <div class="search-box">
+        <Search class="search-icon" :size="16" :stroke-width="2" />
+        <input
+          type="text"
+          v-model="search.query"
+          placeholder="搜索文件..."
+          @input="debouncedSearch"
+          @keydown.escape="clearSearch"
+        />
+        <button
+          v-if="search.query"
+          class="search-clear"
+          @click="clearSearch"
+          aria-label="清除搜索"
         >
-          <component :is="fileIcon(entry)" class="file-icon" :size="18" :stroke-width="1.8" />
-          <div class="file-meta">
-            <strong>{{ entry.name }}</strong>
-            <small>{{ entry.type === 'dir' ? '目录' : formatSize(entry.size) }}</small>
+          <X :size="14" :stroke-width="2" />
+        </button>
+        <button
+          class="search-mode"
+          :class="{ active: search.recursive }"
+          @click="toggleSearchRecursive"
+          :title="search.recursive ? '递归搜索已开启' : '递归搜索已关闭'"
+        >
+          {{ search.recursive ? '递归' : '当前' }}
+        </button>
+      </div>
+
+      <div class="search-status" v-if="search.isSearching">
+        <template v-if="search.loading">
+          搜索中...
+        </template>
+        <template v-else>
+          找到 {{ search.results.length }} 个结果
+        </template>
+      </div>
+
+      <div class="list">
+        <template v-if="search.isSearching">
+          <div v-if="!search.loading && search.results.length === 0" class="empty-result">
+            未找到匹配的文件
           </div>
-          <small>{{ formatDate(entry.modified) }}</small>
-        </div>
+          <div
+            v-for="entry in search.results"
+            :key="entry.path"
+            class="list-item"
+            :class="{
+              active: state.selected?.path === entry.path,
+              'list-item--with-path': search.recursive && getRelativePath(entry)
+            }"
+            @click="selectEntry(entry)"
+          >
+            <component :is="fileIcon(entry)" class="file-icon" :size="18" :stroke-width="1.8" />
+            <div class="file-meta">
+              <strong class="file-name">{{ entry.name }}</strong>
+              <span v-if="search.recursive && getRelativePath(entry)" class="file-path">
+                {{ getRelativePath(entry) }}
+              </span>
+              <div class="file-info">
+                <small>{{ entry.type === 'dir' ? '目录' : formatSize(entry.size) }}</small>
+                <small>{{ formatDate(entry.modified) }}</small>
+              </div>
+            </div>
+          </div>
+        </template>
+        <template v-else>
+          <div
+            v-for="entry in state.entries"
+            :key="entry.path"
+            class="list-item"
+            :class="{ active: state.selected?.path === entry.path }"
+            @click="selectEntry(entry)"
+          >
+            <component :is="fileIcon(entry)" class="file-icon" :size="18" :stroke-width="1.8" />
+            <div class="file-meta">
+              <strong class="file-name">{{ entry.name }}</strong>
+              <div class="file-info">
+                <small>{{ entry.type === 'dir' ? '目录' : formatSize(entry.size) }}</small>
+                <small>{{ formatDate(entry.modified) }}</small>
+              </div>
+            </div>
+          </div>
+        </template>
       </div>
     </section>
 
@@ -428,8 +616,9 @@ watch([() => preview.content, () => preview.view, () => previewMode.value], () =
       <div v-if="!state.selected" class="empty">选择一个文件以开始预览</div>
 
       <template v-else>
-        <div class="file-meta">
+        <div class="preview-meta">
           <strong>{{ state.selected.name }}</strong>
+          <small class="preview-path">{{ formatPath(state.selected.path) }}</small>
           <small>
             {{ formatSize(state.selected.size) }} · {{ formatDate(state.selected.modified) }}
           </small>

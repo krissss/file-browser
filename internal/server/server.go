@@ -39,6 +39,7 @@ func New(cfg Config) (*Server, error) {
 func (s *Server) Handler() http.Handler {
 	mux := http.NewServeMux()
 	mux.HandleFunc("/api/files", s.handleFiles)
+	mux.HandleFunc("/api/search", s.handleSearch)
 	mux.HandleFunc("/api/preview", s.handlePreview)
 	mux.HandleFunc("/api/image", s.handleImage)
 	mux.HandleFunc("/api/download", s.handleDownload)

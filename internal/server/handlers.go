@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"os"
 	"path"
+	"path/filepath"
 	"sort"
 	"strconv"
 	"strings"
@@ -272,4 +273,126 @@ func parseOffsetLimit(r *http.Request, maxLimit int64) (int64, int64, error) {
 	}
 
 	return offset, limit, nil
+}
+
+func (s *Server) handleSearch(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		writeError(w, http.StatusMethodNotAllowed, "METHOD_NOT_ALLOWED", "method not allowed")
+		return
+	}
+
+	reqPath := r.URL.Query().Get("path")
+	query := strings.TrimSpace(r.URL.Query().Get("q"))
+	recursive := r.URL.Query().Get("recursive") == "true"
+
+	if query == "" {
+		writeJSON(w, http.StatusOK, []fileEntry{})
+		return
+	}
+
+	absPath, relPath, err := s.resolvePath(reqPath)
+	if err != nil {
+		writeError(w, statusFromErr(err), "INVALID_PATH", err.Error())
+		return
+	}
+
+	var results []fileEntry
+	queryLower := strings.ToLower(query)
+
+	if recursive {
+		results = s.searchRecursive(absPath, relPath, queryLower, 100)
+	} else {
+		results = s.searchDir(absPath, relPath, queryLower)
+	}
+
+	sort.Slice(results, func(i, j int) bool {
+		if results[i].Type != results[j].Type {
+			return results[i].Type == "dir"
+		}
+		return strings.ToLower(results[i].Name) < strings.ToLower(results[j].Name)
+	})
+
+	writeJSON(w, http.StatusOK, results)
+}
+
+func (s *Server) searchDir(absPath, relPath, queryLower string) []fileEntry {
+	entries, err := os.ReadDir(absPath)
+	if err != nil {
+		return nil
+	}
+
+	var results []fileEntry
+	for _, entry := range entries {
+		if entry.Type()&os.ModeSymlink != 0 {
+			continue
+		}
+
+		nameLower := strings.ToLower(entry.Name())
+		if !strings.Contains(nameLower, queryLower) {
+			continue
+		}
+
+		info, err := entry.Info()
+		if err != nil {
+			continue
+		}
+
+		itemPath := path.Join("/", relPath, entry.Name())
+		item := fileEntry{
+			Name:     entry.Name(),
+			Path:     itemPath,
+			Modified: info.ModTime().UTC().Format(time.RFC3339),
+		}
+		if info.IsDir() {
+			item.Type = "dir"
+		} else {
+			item.Type = "file"
+			item.Size = info.Size()
+		}
+		results = append(results, item)
+	}
+
+	return results
+}
+
+func (s *Server) searchRecursive(absPath, relPath, queryLower string, maxResults int) []fileEntry {
+	var results []fileEntry
+
+	filepath.WalkDir(absPath, func(path string, d os.DirEntry, err error) error {
+		if err != nil {
+			return nil
+		}
+
+		if d.Type()&os.ModeSymlink != 0 {
+			return nil
+		}
+
+		if len(results) >= maxResults {
+			return filepath.SkipAll
+		}
+
+		nameLower := strings.ToLower(d.Name())
+		if strings.Contains(nameLower, queryLower) {
+			info, err := d.Info()
+			if err == nil {
+				relItemPath := filepath.Join(relPath, strings.TrimPrefix(path, absPath))
+				item := fileEntry{
+					Name:     d.Name(),
+					Path:     path.Join("/", filepath.ToSlash(relItemPath)),
+					Modified: info.ModTime().UTC().Format(time.RFC3339),
+				}
+				if d.IsDir() {
+					item.Type = "dir"
+				} else {
+					item.Type = "file"
+					item.Size = info.Size()
+				}
+				results = append(results, item)
+			}
+		}
+
+		return nil
+	})
+
+	return results
 }
