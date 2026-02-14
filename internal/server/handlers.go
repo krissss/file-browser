@@ -358,7 +358,7 @@ func (s *Server) searchDir(absPath, relPath, queryLower string) []fileEntry {
 func (s *Server) searchRecursive(absPath, relPath, queryLower string, maxResults int) []fileEntry {
 	var results []fileEntry
 
-	filepath.WalkDir(absPath, func(path string, d os.DirEntry, err error) error {
+	filepath.WalkDir(absPath, func(walkPath string, d os.DirEntry, err error) error {
 		if err != nil {
 			return nil
 		}
@@ -375,7 +375,7 @@ func (s *Server) searchRecursive(absPath, relPath, queryLower string, maxResults
 		if strings.Contains(nameLower, queryLower) {
 			info, err := d.Info()
 			if err == nil {
-				relItemPath := filepath.Join(relPath, strings.TrimPrefix(path, absPath))
+				relItemPath := filepath.Join(relPath, strings.TrimPrefix(walkPath, absPath))
 				item := fileEntry{
 					Name:     d.Name(),
 					Path:     path.Join("/", filepath.ToSlash(relItemPath)),
