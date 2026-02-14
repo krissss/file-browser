@@ -1,9 +1,10 @@
 <script setup lang="ts">
-import { computed, nextTick, onMounted, reactive, ref, watch } from 'vue';
+import { computed, nextTick, onMounted, onUnmounted, reactive, ref, watch } from 'vue';
+import { useRoute, useRouter } from 'vue-router';
 import { renderMarkdown } from './markdown';
 import { highlightCode, highlightMarkdownBlocks } from './highlight';
 import { Download, Maximize2, Minimize2, Moon, Sun } from 'lucide-vue-next';
-import markdownLight from 'github-markdown-css/github-markdown.css?url';
+import markdownLight from 'github-markdown-css/github-markdown-light.css?url';
 import markdownDark from 'github-markdown-css/github-markdown-dark.css?url';
 
 import {
@@ -32,10 +33,14 @@ type PreviewState = {
   isBinary: boolean;
 };
 
+const route = useRoute();
+const router = useRouter();
+
 const state = reactive({
   currentPath: '/',
   entries: [] as FileEntry[],
-  selected: null as FileEntry | null
+  selected: null as FileEntry | null,
+  initialized: false
 });
 
 const preview = reactive<PreviewState>({
@@ -172,23 +177,63 @@ function previewReset() {
   preview.isBinary = false;
 }
 
-async function selectEntry(entry: FileEntry) {
+async function selectEntry(entry: FileEntry, updateRoute = true) {
   if (entry.type === 'dir') {
-    await loadEntries(entry.path);
+    if (updateRoute) {
+      router.push({ path: '/', query: { dir: entry.path } });
+    } else {
+      await loadEntries(entry.path);
+    }
     return;
   }
   state.selected = entry;
   previewReset();
+  if (updateRoute) {
+    router.push({ path: '/', query: { dir: state.currentPath, file: entry.path } });
+  }
   if (isImage(entryExtension(entry))) {
     return;
   }
   await fetchPreview(entry.path);
 }
 
+function resolveFilePath(linkPath: string): string {
+  if (linkPath.startsWith('/')) {
+    return linkPath;
+  }
+  const baseDir = state.selected ? state.selected.path.substring(0, state.selected.path.lastIndexOf('/')) : state.currentPath;
+  const parts = (baseDir + '/' + linkPath).split('/').filter(Boolean);
+  const resolved: string[] = [];
+  for (const part of parts) {
+    if (part === '..') {
+      resolved.pop();
+    } else if (part !== '.') {
+      resolved.push(part);
+    }
+  }
+  return '/' + resolved.join('/');
+}
+
+function handleInternalLinkClick(event: Event) {
+  const target = event.target as HTMLElement;
+  const link = target.closest('a.internal-link') as HTMLAnchorElement | null;
+  if (!link) return;
+
+  event.preventDefault();
+  const filePath = link.dataset.filePath;
+  if (!filePath) return;
+
+  const resolvedPath = resolveFilePath(filePath);
+  const dirPath = resolvedPath.substring(0, resolvedPath.lastIndexOf('/')) || '/';
+
+  router.push({ path: '/', query: { dir: dirPath, file: resolvedPath } });
+}
+
+const clickHandler = (e: Event) => handleInternalLinkClick(e);
+
 async function fetchPreview(path: string, append = false) {
   const previewCard = previewCardRef.value;
   const prevScrollTop = previewCard ? previewCard.scrollTop : 0;
-  const prevScrollHeight = previewCard ? previewCard.scrollHeight : 0;
 
   if (append) {
     preview.appending = true;
@@ -276,6 +321,37 @@ const selectedImage = computed(() => {
   return `/api/image?path=${encodeURIComponent(state.selected.path)}`;
 });
 
+function navigateToCrumb(path: string) {
+  router.push({ path: '/', query: { dir: path } });
+}
+
+async function handleRouteChange() {
+  const dir = (route.query.dir as string) || '/';
+  const file = route.query.file as string | undefined;
+
+  await loadEntries(dir);
+
+  if (file) {
+    const entry = state.entries.find(e => e.path === file);
+    if (entry) {
+      await selectEntry(entry, false);
+    } else {
+      state.selected = {
+        name: file.split('/').pop() || file,
+        path: file,
+        type: 'file',
+        size: 0,
+        modified: '',
+        extension: fileExtensionFromName(file)
+      };
+      previewReset();
+      if (!isImage(entryExtension(state.selected))) {
+        await fetchPreview(file);
+      }
+    }
+  }
+}
+
 onMounted(async () => {
   const saved = localStorage.getItem('file-browser-theme');
   if (saved === 'dark' || saved === 'light') {
@@ -283,8 +359,20 @@ onMounted(async () => {
   } else {
     applyTheme('light');
   }
-  await loadEntries('/');
+  document.addEventListener('click', clickHandler);
+  state.initialized = true;
+  await handleRouteChange();
 });
+
+onUnmounted(() => {
+  document.removeEventListener('click', clickHandler);
+});
+
+watch(() => route.query, () => {
+  if (state.initialized) {
+    handleRouteChange();
+  }
+}, { deep: true });
 
 watch([() => preview.content, () => preview.view, () => previewMode.value], () => {
   applyCodeHighlight();
@@ -313,7 +401,7 @@ watch([() => preview.content, () => preview.view, () => previewMode.value], () =
     <section class="panel list-panel">
       <div class="breadcrumbs">
         <template v-for="(crumb, index) in breadcrumbs" :key="crumb.path">
-          <span @click="loadEntries(crumb.path)">{{ crumb.label }}</span>
+          <span @click="navigateToCrumb(crumb.path)">{{ crumb.label }}</span>
           <span v-if="index < breadcrumbs.length - 1">/</span>
         </template>
       </div>

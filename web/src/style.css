@@ -339,6 +339,61 @@ body {
   font-size: 14px;
 }
 
+.fm-container {
+  background: var(--bg-soft);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 12px 16px;
+  margin-bottom: 20px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
+}
+
+.fm-item {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.fm-key {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--text-muted);
+  font-weight: 600;
+}
+
+.fm-value {
+  font-size: 13px;
+  color: var(--text);
+}
+
+.fm-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.fm-tag {
+  background: var(--accent);
+  color: #1b120c;
+  padding: 2px 8px;
+  border-radius: 4px;
+  font-size: 12px;
+  font-weight: 500;
+}
+
+.markdown-body a.internal-link {
+  color: var(--accent) !important;
+  text-decoration: underline !important;
+  cursor: pointer;
+}
+
+.markdown-body a.internal-link:hover {
+  color: var(--accent-strong) !important;
+}
+
 @media (max-width: 960px) {
   .app-shell {
     grid-template-columns: 1fr;
