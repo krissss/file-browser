@@ -399,3 +399,133 @@ body {
     grid-template-columns: 1fr;
   }
 }
+
+@media (max-width: 640px) {
+  #app {
+    padding: 12px;
+    gap: 10px;
+  }
+
+  .panel {
+    padding: 12px;
+    border-radius: 12px;
+  }
+
+  .header {
+    gap: 8px;
+  }
+
+  .brand {
+    gap: 8px;
+  }
+
+  .brand-logo {
+    width: 28px;
+    height: 28px;
+  }
+
+  .title h1 {
+    font-size: 16px;
+  }
+
+  .icon-button {
+    width: 32px;
+    height: 32px;
+    border-radius: 8px;
+  }
+
+  .icon-button svg {
+    width: 16px;
+    height: 16px;
+  }
+
+  .button {
+    padding: 6px 10px;
+    border-radius: 8px;
+    font-size: 13px;
+  }
+
+  .breadcrumbs {
+    font-size: 12px;
+    margin-top: 8px;
+  }
+
+  .list {
+    margin-top: 10px;
+    gap: 6px;
+  }
+
+  .list-item {
+    padding: 8px 10px;
+    gap: 10px;
+    border-radius: 8px;
+  }
+
+  .list-item strong {
+    font-size: 13px;
+  }
+
+  .list-item small {
+    font-size: 10px;
+  }
+
+  .preview-toolbar {
+    padding-bottom: 8px;
+    margin-bottom: 8px;
+    gap: 8px;
+  }
+
+  .preview-card {
+    padding: 10px;
+    border-radius: 8px;
+  }
+
+  .preview-card pre,
+  .preview-card code {
+    font-size: 12px;
+  }
+
+  .markdown-body {
+    font-size: 13px;
+  }
+
+  .empty {
+    font-size: 13px;
+  }
+
+  .file-meta small {
+    font-size: 10px;
+  }
+
+  .fm-container {
+    padding: 10px 12px;
+    gap: 12px;
+    margin-bottom: 14px;
+  }
+
+  .fm-key {
+    font-size: 10px;
+  }
+
+  .fm-value {
+    font-size: 12px;
+  }
+
+  .fm-tag {
+    padding: 2px 6px;
+    font-size: 11px;
+  }
+
+  .load-status {
+    font-size: 11px;
+  }
+
+  html, body {
+    height: 100dvh;
+  }
+
+  #app {
+    height: 100dvh;
+    padding-bottom: calc(12px + env(safe-area-inset-bottom, 0px));
+  }
+}
