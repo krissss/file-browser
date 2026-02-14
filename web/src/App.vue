@@ -258,19 +258,7 @@ function codeLanguage(file: FileEntry | null) {
   const name = file.name.toLowerCase();
   if (name === 'dockerfile' || name.startsWith('dockerfile.')) return 'dockerfile';
   if (name === 'makefile' || name.startsWith('makefile.')) return 'makefile';
-  const ext = entryExtension(file).toLowerCase();
-  if (ext === 'yml') return 'yaml';
-  if (ext === 'js') return 'javascript';
-  if (ext === 'ts') return 'typescript';
-  if (ext === 'tsx' || ext === 'jsx') return 'javascript';
-  if (ext === 'sh' || ext === 'zsh') return 'bash';
-  if (ext === 'proto') return 'protobuf';
-  if (ext === 'gql') return 'graphql';
-  if (ext === 'cs') return 'cs';
-  if (ext === 'kt' || ext === 'kts') return 'kotlin';
-  if (ext === 'xml' || ext === 'html') return 'xml';
-  if (ext === 'toml') return 'ini';
-  return ext || 'plaintext';
+  return entryExtension(file).toLowerCase() || 'plaintext';
 }
 
 function setPreviewView(view: 'render' | 'raw') {
