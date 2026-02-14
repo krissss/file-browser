@@ -52,6 +52,64 @@ hljs.registerLanguage('typescript', typescript);
 hljs.registerLanguage('xml', xml);
 hljs.registerLanguage('yaml', yaml);
 
+const registeredLanguages = new Set([
+  'bash', 'c', 'cpp', 'cs', 'dockerfile', 'go', 'graphql', 'ini',
+  'java', 'javascript', 'json', 'kotlin', 'lua', 'makefile', 'php',
+  'plaintext', 'protobuf', 'python', 'ruby', 'rust', 'sql', 'swift',
+  'typescript', 'xml', 'yaml',
+]);
+
+const languageAliases: Record<string, string> = {
+  yml: 'yaml',
+  sh: 'bash',
+  zsh: 'bash',
+  js: 'javascript',
+  mjs: 'javascript',
+  cjs: 'javascript',
+  ts: 'typescript',
+  tsx: 'typescript',
+  jsx: 'javascript',
+  proto: 'protobuf',
+  gql: 'graphql',
+  kt: 'kotlin',
+  kts: 'kotlin',
+  html: 'xml',
+  cc: 'cpp',
+  cxx: 'cpp',
+  h: 'cpp',
+  hh: 'cpp',
+  hpp: 'cpp',
+  hxx: 'cpp',
+  gitignore: 'ini',
+  env: 'ini',
+  conf: 'ini',
+  toml: 'ini',
+  properties: 'ini',
+  eslintrc: 'json',
+  prettierrc: 'json',
+  tsconfig: 'json',
+  lock: 'plaintext',
+  gradle: 'plaintext',
+  vue: 'plaintext',
+  svelte: 'plaintext',
+  astro: 'plaintext',
+  scala: 'plaintext',
+  dart: 'plaintext',
+  r: 'plaintext',
+  clj: 'plaintext',
+  cljs: 'plaintext',
+  cljc: 'plaintext',
+  ps1: 'plaintext',
+  psm1: 'plaintext',
+  bat: 'plaintext',
+  cmd: 'plaintext',
+  css: 'plaintext',
+  scss: 'plaintext',
+  sass: 'plaintext',
+  less: 'plaintext',
+  styl: 'plaintext',
+};
+
 export function highlightMarkdownBlocks(selector = '.markdown pre code') {
   const blocks = document.querySelectorAll(selector);
   blocks.forEach((block) => {
@@ -60,8 +118,12 @@ export function highlightMarkdownBlocks(selector = '.markdown pre code') {
 }
 
 export function highlightCode(content: string, lang?: string) {
-  const highlighted = lang
-    ? hljs.highlight(content, { language: lang }).value
+  let resolvedLang = lang && languageAliases[lang] ? languageAliases[lang] : lang;
+  if (resolvedLang && !registeredLanguages.has(resolvedLang)) {
+    resolvedLang = undefined;
+  }
+  const highlighted = resolvedLang
+    ? hljs.highlight(content, { language: resolvedLang }).value
     : hljs.highlightAuto(content).value;
   return DOMPurify.sanitize(`<pre><code class="hljs">${highlighted}</code></pre>`);
 }
