@@ -10,23 +10,35 @@ import (
 	"strings"
 )
 
+// 默认配置值
 const (
-	defaultHost             = "127.0.0.1"
-	defaultPort             = 3000
-	defaultPreviewMax       = 1 * 1024 * 1024
+	defaultHost             = "127.0.0.1"      // 默认监听地址
+	defaultPort             = 3000             // 默认端口
+	defaultPreviewMax       = 1 * 1024 * 1024  // 默认预览大小限制 (1MB)
 )
 
+// Config 服务器配置
 type Config struct {
-	Root       string
-	Host       string
-	Port       int
-	PreviewMax int64
+	Root       string // 文件浏览根目录（绝对路径）
+	Host       string // 监听地址
+	Port       int    // 监听端口
+	PreviewMax int64  // 文件预览最大字节数
 }
 
+// Addr 返回监听地址，格式为 host:port
 func (c Config) Addr() string {
 	return fmt.Sprintf("%s:%d", c.Host, c.Port)
 }
 
+// ParseConfig 从命令行参数和环境变量解析配置
+// 命令行参数：
+//
+//	--path: 文件浏览根目录（必需）
+//	--host: 监听地址（默认 127.0.0.1）
+//	--port: 监听端口（默认 3000）
+//	--preview-max: 预览大小限制（默认 1MB）
+//
+// 环境变量：FILE_BROWSER_PATH、FILE_BROWSER_HOST 等
 func ParseConfig() (Config, error) {
 	var cfg Config
 
@@ -36,11 +48,13 @@ func ParseConfig() (Config, error) {
 	fs.IntVar(&cfg.Port, "port", defaultPort, "port to listen on")
 	previewMax := fs.String("preview-max", "1MB", "max preview size (e.g. 1MB, 512KB)")
 
+	// 应用环境变量默认值（优先级低于命令行参数）
 	applyEnvDefaults(fs)
 	if err := fs.Parse(os.Args[1:]); err != nil {
 		return Config{}, err
 	}
 
+	// 解析预览大小限制
 	maxBytes, err := parseBytes(*previewMax)
 	if err != nil {
 		return Config{}, fmt.Errorf("invalid --preview-max: %w", err)
@@ -50,11 +64,13 @@ func ParseConfig() (Config, error) {
 		return Config{}, errors.New("--path is required")
 	}
 
+	// 转换为绝对路径
 	absRoot, err := filepath.Abs(cfg.Root)
 	if err != nil {
 		return Config{}, fmt.Errorf("resolve root: %w", err)
 	}
 
+	// 验证根目录：必须存在、不能是符号链接、必须是目录
 	info, err := os.Lstat(absRoot)
 	if err != nil {
 		return Config{}, fmt.Errorf("root not accessible: %w", err)
@@ -75,6 +91,9 @@ func ParseConfig() (Config, error) {
 	return cfg, nil
 }
 
+// applyEnvDefaults 从环境变量应用默认值
+// 环境变量命名规则：FILE_BROWSER_<大写参数名>
+// 例如：--preview-max 对应 FILE_BROWSER_PREVIEW_MAX
 func applyEnvDefaults(fs *flag.FlagSet) {
 	fs.VisitAll(func(f *flag.Flag) {
 		key := "FILE_BROWSER_" + strings.ToUpper(strings.ReplaceAll(f.Name, "-", "_"))
@@ -85,6 +104,8 @@ func applyEnvDefaults(fs *flag.FlagSet) {
 	})
 }
 
+// parseBytes 解析带单位的字节大小字符串
+// 支持格式：1024、1KB、2K、1.5MB、1G 等
 func parseBytes(input string) (int64, error) {
 	value := strings.TrimSpace(strings.ToUpper(input))
 	if value == "" {
