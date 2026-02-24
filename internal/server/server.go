@@ -4,9 +4,10 @@ import (
 	"bytes"
 	"errors"
 	"io/fs"
-	"net/http"
 	"path"
 	"strings"
+
+	"github.com/gin-gonic/gin"
 )
 
 type Server struct {
@@ -36,55 +37,55 @@ func New(cfg Config) (*Server, error) {
 	}, nil
 }
 
-func (s *Server) Handler() http.Handler {
-	mux := http.NewServeMux()
-	mux.HandleFunc("/api/files", s.handleFiles)
-	mux.HandleFunc("/api/search", s.handleSearch)
-	mux.HandleFunc("/api/preview", s.handlePreview)
-	mux.HandleFunc("/api/image", s.handleImage)
-	mux.HandleFunc("/api/download", s.handleDownload)
-	mux.HandleFunc("/healthz", s.handleHealth)
-	mux.HandleFunc("/", s.handleStatic)
-	return mux
+func (s *Server) Handler() *gin.Engine {
+	r := gin.New()
+	r.Use(gin.Recovery())
+
+	// API routes
+	r.GET("/api/files", s.handleFiles)
+	r.GET("/api/search", s.handleSearch)
+	r.GET("/api/preview", s.handlePreview)
+	r.GET("/api/image", s.handleImage)
+	r.GET("/api/download", s.handleDownload)
+	r.GET("/healthz", s.handleHealth)
+
+	// Static files and SPA fallback
+	r.NoRoute(s.handleStatic)
+
+	return r
 }
 
-func (s *Server) handleStatic(w http.ResponseWriter, r *http.Request) {
-	if r.Method != http.MethodGet && r.Method != http.MethodHead {
-		w.WriteHeader(http.StatusMethodNotAllowed)
-		return
-	}
-
-	requestPath := strings.TrimPrefix(path.Clean("/"+r.URL.Path), "/")
+func (s *Server) handleStatic(c *gin.Context) {
+	requestPath := strings.TrimPrefix(path.Clean("/"+c.Request.URL.Path), "/")
 	if requestPath == "" || requestPath == "." {
-		s.serveIndex(w, r)
+		s.serveIndex(c)
 		return
 	}
 
 	file, err := s.static.Open(requestPath)
 	if err != nil {
-		s.serveIndex(w, r)
+		s.serveIndex(c)
 		return
 	}
 	defer file.Close()
 
 	info, err := file.Stat()
 	if err != nil || info.IsDir() {
-		s.serveIndex(w, r)
+		s.serveIndex(c)
 		return
 	}
 
 	data, err := fs.ReadFile(s.static, requestPath)
 	if err != nil {
-		w.WriteHeader(http.StatusNotFound)
+		c.Status(404)
 		return
 	}
 
-	http.ServeContent(w, r, info.Name(), info.ModTime(), bytes.NewReader(data))
+	httpServeContent(c, info.Name(), info.ModTime(), bytes.NewReader(data))
 }
 
-func (s *Server) serveIndex(w http.ResponseWriter, r *http.Request) {
-	w.Header().Set("Content-Type", "text/html; charset=utf-8")
-	_, _ = w.Write(s.index)
+func (s *Server) serveIndex(c *gin.Context) {
+	c.Data(200, "text/html; charset=utf-8", s.index)
 }
 
 var errAccessDenied = errors.New("access denied")

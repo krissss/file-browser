@@ -3,7 +3,6 @@ package main
 import (
 	"fmt"
 	"log"
-	"net/http"
 	"reflect"
 	"strings"
 
@@ -45,7 +44,8 @@ func main() {
 	}
 
 	log.Printf("file-browser: %s", formatConfig(cfg))
-	if err := http.ListenAndServe(cfg.Addr(), srv.Handler()); err != nil {
+	r := srv.Handler()
+	if err := r.Run(cfg.Addr()); err != nil {
 		log.Fatal(err)
 	}
 }

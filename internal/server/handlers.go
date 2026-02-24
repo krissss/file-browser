@@ -11,6 +11,8 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/gin-gonic/gin"
 )
 
 type fileEntry struct {
@@ -32,22 +34,39 @@ type previewResponse struct {
 	HasMore  bool   `json:"hasMore"`
 }
 
-func (s *Server) handleFiles(w http.ResponseWriter, r *http.Request) {
-	if r.Method != http.MethodGet {
-		writeError(w, http.StatusMethodNotAllowed, "METHOD_NOT_ALLOWED", "method not allowed")
-		return
-	}
+type errorResponse struct {
+	Error string `json:"error"`
+	Code  string `json:"code"`
+}
 
-	reqPath := r.URL.Query().Get("path")
+func abortWithError(c *gin.Context, status int, code, message string) {
+	c.AbortWithStatusJSON(status, errorResponse{Error: message, Code: code})
+}
+
+func statusFromErr(err error) int {
+	if err == nil {
+		return http.StatusOK
+	}
+	if errors.Is(err, errAccessDenied) {
+		return http.StatusForbidden
+	}
+	if errors.Is(err, os.ErrNotExist) {
+		return http.StatusNotFound
+	}
+	return http.StatusBadRequest
+}
+
+func (s *Server) handleFiles(c *gin.Context) {
+	reqPath := c.Query("path")
 	absPath, relPath, err := s.resolvePath(reqPath)
 	if err != nil {
-		writeError(w, statusFromErr(err), "INVALID_PATH", err.Error())
+		abortWithError(c, statusFromErr(err), "INVALID_PATH", err.Error())
 		return
 	}
 
 	entries, err := os.ReadDir(absPath)
 	if err != nil {
-		writeError(w, statusFromErr(err), "READ_DIR_FAILED", err.Error())
+		abortWithError(c, statusFromErr(err), "READ_DIR_FAILED", err.Error())
 		return
 	}
 
@@ -84,41 +103,36 @@ func (s *Server) handleFiles(w http.ResponseWriter, r *http.Request) {
 		return strings.ToLower(items[i].Name) < strings.ToLower(items[j].Name)
 	})
 
-	writeJSON(w, http.StatusOK, items)
+	c.JSON(http.StatusOK, items)
 }
 
-func (s *Server) handlePreview(w http.ResponseWriter, r *http.Request) {
-	if r.Method != http.MethodGet {
-		writeError(w, http.StatusMethodNotAllowed, "METHOD_NOT_ALLOWED", "method not allowed")
-		return
-	}
-
-	reqPath := r.URL.Query().Get("path")
+func (s *Server) handlePreview(c *gin.Context) {
+	reqPath := c.Query("path")
 	absPath, relPath, err := s.resolvePath(reqPath)
 	if err != nil {
-		writeError(w, statusFromErr(err), "INVALID_PATH", err.Error())
+		abortWithError(c, statusFromErr(err), "INVALID_PATH", err.Error())
 		return
 	}
 
 	info, err := os.Stat(absPath)
 	if err != nil {
-		writeError(w, statusFromErr(err), "STAT_FAILED", err.Error())
+		abortWithError(c, statusFromErr(err), "STAT_FAILED", err.Error())
 		return
 	}
 	if info.IsDir() {
-		writeError(w, http.StatusBadRequest, "NOT_A_FILE", "path is a directory")
+		abortWithError(c, http.StatusBadRequest, "NOT_A_FILE", "path is a directory")
 		return
 	}
 
-	offset, limit, err := parseOffsetLimit(r, s.cfg.PreviewMax)
+	offset, limit, err := parseOffsetLimit(c, s.cfg.PreviewMax)
 	if err != nil {
-		writeError(w, http.StatusBadRequest, "INVALID_RANGE", err.Error())
+		abortWithError(c, http.StatusBadRequest, "INVALID_RANGE", err.Error())
 		return
 	}
 
 	file, err := os.Open(absPath)
 	if err != nil {
-		writeError(w, http.StatusInternalServerError, "READ_FAILED", "failed to open file")
+		abortWithError(c, http.StatusInternalServerError, "READ_FAILED", "failed to open file")
 		return
 	}
 	defer file.Close()
@@ -135,7 +149,7 @@ func (s *Server) handlePreview(w http.ResponseWriter, r *http.Request) {
 		readLimit = info.Size()
 	}
 	if s.cfg.PreviewMax > 0 {
-		readLimit = minInt64(readLimit, s.cfg.PreviewMax)
+		readLimit = min(readLimit, s.cfg.PreviewMax)
 	}
 
 	remaining := info.Size() - offset
@@ -146,7 +160,7 @@ func (s *Server) handlePreview(w http.ResponseWriter, r *http.Request) {
 	content := make([]byte, readLimit)
 	n, err := file.ReadAt(content, offset)
 	if err != nil && !errors.Is(err, io.EOF) {
-		writeError(w, http.StatusInternalServerError, "READ_FAILED", "failed to read file")
+		abortWithError(c, http.StatusInternalServerError, "READ_FAILED", "failed to read file")
 		return
 	}
 
@@ -161,91 +175,73 @@ func (s *Server) handlePreview(w http.ResponseWriter, r *http.Request) {
 		HasMore:  offset+int64(n) < info.Size(),
 	}
 
-	writeJSON(w, http.StatusOK, resp)
+	c.JSON(http.StatusOK, resp)
 }
 
-func (s *Server) handleImage(w http.ResponseWriter, r *http.Request) {
-	if r.Method != http.MethodGet {
-		writeError(w, http.StatusMethodNotAllowed, "METHOD_NOT_ALLOWED", "method not allowed")
-		return
-	}
-
-	reqPath := r.URL.Query().Get("path")
+func (s *Server) handleImage(c *gin.Context) {
+	reqPath := c.Query("path")
 	absPath, _, err := s.resolvePath(reqPath)
 	if err != nil {
-		writeError(w, statusFromErr(err), "INVALID_PATH", err.Error())
+		abortWithError(c, statusFromErr(err), "INVALID_PATH", err.Error())
 		return
 	}
 
 	info, err := os.Stat(absPath)
 	if err != nil {
-		writeError(w, statusFromErr(err), "STAT_FAILED", err.Error())
+		abortWithError(c, statusFromErr(err), "STAT_FAILED", err.Error())
 		return
 	}
 	if info.IsDir() {
-		writeError(w, http.StatusBadRequest, "NOT_A_FILE", "path is a directory")
+		abortWithError(c, http.StatusBadRequest, "NOT_A_FILE", "path is a directory")
 		return
 	}
 
 	file, err := os.Open(absPath)
 	if err != nil {
-		writeError(w, http.StatusInternalServerError, "READ_FAILED", "failed to open file")
+		abortWithError(c, http.StatusInternalServerError, "READ_FAILED", "failed to open file")
 		return
 	}
 	defer file.Close()
 
-	http.ServeContent(w, r, info.Name(), info.ModTime(), file)
+	httpServeContent(c, info.Name(), info.ModTime(), file)
 }
 
-func (s *Server) handleHealth(w http.ResponseWriter, r *http.Request) {
-	if r.Method != http.MethodGet {
-		writeError(w, http.StatusMethodNotAllowed, "METHOD_NOT_ALLOWED", "method not allowed")
-		return
-	}
-
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(http.StatusOK)
-	_, _ = w.Write([]byte(`{"status":"ok"}`))
+func (s *Server) handleHealth(c *gin.Context) {
+	c.JSON(http.StatusOK, gin.H{"status": "ok"})
 }
 
-func (s *Server) handleDownload(w http.ResponseWriter, r *http.Request) {
-	if r.Method != http.MethodGet {
-		writeError(w, http.StatusMethodNotAllowed, "METHOD_NOT_ALLOWED", "method not allowed")
-		return
-	}
-
-	reqPath := r.URL.Query().Get("path")
+func (s *Server) handleDownload(c *gin.Context) {
+	reqPath := c.Query("path")
 	absPath, _, err := s.resolvePath(reqPath)
 	if err != nil {
-		writeError(w, statusFromErr(err), "INVALID_PATH", err.Error())
+		abortWithError(c, statusFromErr(err), "INVALID_PATH", err.Error())
 		return
 	}
 
 	info, err := os.Stat(absPath)
 	if err != nil {
-		writeError(w, statusFromErr(err), "STAT_FAILED", err.Error())
+		abortWithError(c, statusFromErr(err), "STAT_FAILED", err.Error())
 		return
 	}
 	if info.IsDir() {
-		writeError(w, http.StatusBadRequest, "NOT_A_FILE", "path is a directory")
+		abortWithError(c, http.StatusBadRequest, "NOT_A_FILE", "path is a directory")
 		return
 	}
 
 	file, err := os.Open(absPath)
 	if err != nil {
-		writeError(w, http.StatusInternalServerError, "READ_FAILED", "failed to open file")
+		abortWithError(c, http.StatusInternalServerError, "READ_FAILED", "failed to open file")
 		return
 	}
 	defer file.Close()
 
-	w.Header().Set("Content-Disposition", "attachment; filename=\""+info.Name()+"\"")
-	http.ServeContent(w, r, info.Name(), info.ModTime(), file)
+	c.Header("Content-Disposition", "attachment; filename=\""+info.Name()+"\"")
+	httpServeContent(c, info.Name(), info.ModTime(), file)
 }
 
-func parseOffsetLimit(r *http.Request, maxLimit int64) (int64, int64, error) {
-	q := r.URL.Query()
-	offsetStr := q.Get("offset")
-	limitStr := q.Get("limit")
+func parseOffsetLimit(c *gin.Context, maxLimit int64) (int64, int64, error) {
+	offsetStr := c.Query("offset")
+	limitStr := c.Query("limit")
 
 	var offset int64
 	var limit int64
@@ -275,24 +271,19 @@ func parseOffsetLimit(r *http.Request, maxLimit int64) (int64, int64, error) {
 	return offset, limit, nil
 }
 
-func (s *Server) handleSearch(w http.ResponseWriter, r *http.Request) {
-	if r.Method != http.MethodGet {
-		writeError(w, http.StatusMethodNotAllowed, "METHOD_NOT_ALLOWED", "method not allowed")
-		return
-	}
-
-	reqPath := r.URL.Query().Get("path")
-	query := strings.TrimSpace(r.URL.Query().Get("q"))
-	recursive := r.URL.Query().Get("recursive") == "true"
+func (s *Server) handleSearch(c *gin.Context) {
+	reqPath := c.Query("path")
+	query := strings.TrimSpace(c.Query("q"))
+	recursive := c.Query("recursive") == "true"
 
 	if query == "" {
-		writeJSON(w, http.StatusOK, []fileEntry{})
+		c.JSON(http.StatusOK, []fileEntry{})
 		return
 	}
 
 	absPath, relPath, err := s.resolvePath(reqPath)
 	if err != nil {
-		writeError(w, statusFromErr(err), "INVALID_PATH", err.Error())
+		abortWithError(c, statusFromErr(err), "INVALID_PATH", err.Error())
 		return
 	}
 
@@ -312,7 +303,7 @@ func (s *Server) handleSearch(w http.ResponseWriter, r *http.Request) {
 		return strings.ToLower(results[i].Name) < strings.ToLower(results[j].Name)
 	})
 
-	writeJSON(w, http.StatusOK, results)
+	c.JSON(http.StatusOK, results)
 }
 
 func (s *Server) searchDir(absPath, relPath, queryLower string) []fileEntry {

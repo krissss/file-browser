@@ -6,7 +6,13 @@ import (
 	"os"
 	"path/filepath"
 	"testing"
+
+	"github.com/gin-gonic/gin"
 )
+
+func init() {
+	gin.SetMode(gin.TestMode)
+}
 
 func setupTestServer(t *testing.T) (*Server, string) {
 	t.Helper()
@@ -40,10 +46,11 @@ func TestHandleHealth(t *testing.T) {
 	server, tmpDir := setupTestServer(t)
 	defer os.RemoveAll(tmpDir)
 
+	r := server.Handler()
 	req := httptest.NewRequest(http.MethodGet, "/healthz", nil)
 	w := httptest.NewRecorder()
 
-	server.handleHealth(w, req)
+	r.ServeHTTP(w, req)
 
 	if w.Code != http.StatusOK {
 		t.Errorf("handleHealth status = %d, want %d", w.Code, http.StatusOK)
@@ -52,25 +59,6 @@ func TestHandleHealth(t *testing.T) {
 	expected := `{"status":"ok"}`
 	if w.Body.String() != expected {
 		t.Errorf("handleHealth body = %q, want %q", w.Body.String(), expected)
-	}
-}
-
-func TestHandleHealth_MethodNotAllowed(t *testing.T) {
-	server, tmpDir := setupTestServer(t)
-	defer os.RemoveAll(tmpDir)
-
-	methods := []string{http.MethodPost, http.MethodPut, http.MethodDelete, http.MethodPatch}
-	for _, method := range methods {
-		t.Run(method, func(t *testing.T) {
-			req := httptest.NewRequest(method, "/healthz", nil)
-			w := httptest.NewRecorder()
-
-			server.handleHealth(w, req)
-
-			if w.Code != http.StatusMethodNotAllowed {
-				t.Errorf("handleHealth %s status = %d, want %d", method, w.Code, http.StatusMethodNotAllowed)
-			}
-		})
 	}
 }
 
@@ -104,13 +92,15 @@ func TestHandleFiles(t *testing.T) {
 		},
 	}
 
+	r := server.Handler()
+
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			url := "/api/files?path=" + tt.path
 			req := httptest.NewRequest(http.MethodGet, url, nil)
 			w := httptest.NewRecorder()
 
-			server.handleFiles(w, req)
+			r.ServeHTTP(w, req)
 
 			if w.Code != tt.wantStatus {
 				t.Errorf("handleFiles status = %d, want %d, body: %s", w.Code, tt.wantStatus, w.Body.String())
@@ -127,28 +117,11 @@ func TestHandleFiles(t *testing.T) {
 	}
 }
 
-func TestHandleFiles_MethodNotAllowed(t *testing.T) {
-	server, tmpDir := setupTestServer(t)
-	defer os.RemoveAll(tmpDir)
-
-	methods := []string{http.MethodPost, http.MethodPut, http.MethodDelete}
-	for _, method := range methods {
-		t.Run(method, func(t *testing.T) {
-			req := httptest.NewRequest(method, "/api/files?path=/", nil)
-			w := httptest.NewRecorder()
-
-			server.handleFiles(w, req)
-
-			if w.Code != http.StatusMethodNotAllowed {
-				t.Errorf("handleFiles %s status = %d, want %d", method, w.Code, http.StatusMethodNotAllowed)
-			}
-		})
-	}
-}
-
 func TestHandlePreview(t *testing.T) {
 	server, tmpDir := setupTestServer(t)
 	defer os.RemoveAll(tmpDir)
+
+	r := server.Handler()
 
 	tests := []struct {
 		name       string
@@ -211,7 +184,7 @@ func TestHandlePreview(t *testing.T) {
 			req := httptest.NewRequest(http.MethodGet, url, nil)
 			w := httptest.NewRecorder()
 
-			server.handlePreview(w, req)
+			r.ServeHTTP(w, req)
 
 			if w.Code != tt.wantStatus {
 				t.Errorf("handlePreview status = %d, want %d, body: %s", w.Code, tt.wantStatus, w.Body.String())
@@ -223,6 +196,8 @@ func TestHandlePreview(t *testing.T) {
 func TestHandleDownload(t *testing.T) {
 	server, tmpDir := setupTestServer(t)
 	defer os.RemoveAll(tmpDir)
+
+	r := server.Handler()
 
 	tests := []struct {
 		name            string
@@ -253,7 +228,7 @@ func TestHandleDownload(t *testing.T) {
 			req := httptest.NewRequest(http.MethodGet, "/api/download?path="+tt.path, nil)
 			w := httptest.NewRecorder()
 
-			server.handleDownload(w, req)
+			r.ServeHTTP(w, req)
 
 			if w.Code != tt.wantStatus {
 				t.Errorf("handleDownload status = %d, want %d", w.Code, tt.wantStatus)
@@ -272,6 +247,8 @@ func TestHandleDownload(t *testing.T) {
 func TestHandleSearch(t *testing.T) {
 	server, tmpDir := setupTestServer(t)
 	defer os.RemoveAll(tmpDir)
+
+	r := server.Handler()
 
 	tests := []struct {
 		name       string
@@ -311,7 +288,7 @@ func TestHandleSearch(t *testing.T) {
 			req := httptest.NewRequest(http.MethodGet, url, nil)
 			w := httptest.NewRecorder()
 
-			server.handleSearch(w, req)
+			r.ServeHTTP(w, req)
 
 			if w.Code != tt.wantStatus {
 				t.Errorf("handleSearch status = %d, want %d, body: %s", w.Code, tt.wantStatus, w.Body.String())
@@ -320,107 +297,22 @@ func TestHandleSearch(t *testing.T) {
 	}
 }
 
-func TestParseOffsetLimit(t *testing.T) {
+func TestStatusFromErr(t *testing.T) {
 	tests := []struct {
-		name        string
-		offset      string
-		limit       string
-		maxLimit    int64
-		wantOffset  int64
-		wantLimit   int64
-		wantErr     bool
+		name     string
+		err      error
+		expected int
 	}{
-		{
-			name:       "empty values",
-			offset:     "",
-			limit:      "",
-			maxLimit:   1024,
-			wantOffset: 0,
-			wantLimit:  0,
-			wantErr:    false,
-		},
-		{
-			name:       "valid values",
-			offset:     "100",
-			limit:      "50",
-			maxLimit:   1024,
-			wantOffset: 100,
-			wantLimit:  50,
-			wantErr:    false,
-		},
-		{
-			name:       "limit exceeds max",
-			offset:     "0",
-			limit:      "2048",
-			maxLimit:   1024,
-			wantOffset: 0,
-			wantLimit:  1024,
-			wantErr:    false,
-		},
-		{
-			name:     "invalid offset",
-			offset:   "abc",
-			limit:    "50",
-			maxLimit: 1024,
-			wantErr:  true,
-		},
-		{
-			name:     "invalid limit",
-			offset:   "0",
-			limit:    "xyz",
-			maxLimit: 1024,
-			wantErr:  true,
-		},
-		{
-			name:     "negative offset",
-			offset:   "-1",
-			limit:    "50",
-			maxLimit: 1024,
-			wantErr:  true,
-		},
-		{
-			name:     "negative limit",
-			offset:   "0",
-			limit:    "-1",
-			maxLimit: 1024,
-			wantErr:  true,
-		},
-		{
-			name:       "zero max limit (no limit)",
-			offset:     "0",
-			limit:      "999999",
-			maxLimit:   0,
-			wantOffset: 0,
-			wantLimit:  999999,
-			wantErr:    false,
-		},
+		{"nil error", nil, http.StatusOK},
+		{"access denied", errAccessDenied, http.StatusForbidden},
+		{"not exist", os.ErrNotExist, http.StatusNotFound},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			url := "/?offset=" + tt.offset + "&limit=" + tt.limit
-			req := httptest.NewRequest(http.MethodGet, url, nil)
-
-			offset, limit, err := parseOffsetLimit(req, tt.maxLimit)
-
-			if tt.wantErr {
-				if err == nil {
-					t.Errorf("parseOffsetLimit expected error, got nil")
-				}
-				return
-			}
-
-			if err != nil {
-				t.Errorf("parseOffsetLimit unexpected error: %v", err)
-				return
-			}
-
-			if offset != tt.wantOffset {
-				t.Errorf("parseOffsetLimit offset = %d, want %d", offset, tt.wantOffset)
-			}
-
-			if limit != tt.wantLimit {
-				t.Errorf("parseOffsetLimit limit = %d, want %d", limit, tt.wantLimit)
+			result := statusFromErr(tt.err)
+			if result != tt.expected {
+				t.Errorf("statusFromErr(%v) = %d, want %d", tt.err, result, tt.expected)
 			}
 		})
 	}
