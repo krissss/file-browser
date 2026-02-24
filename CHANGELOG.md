@@ -4,6 +4,24 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [v0.2.0] - 2026-02-24
+
+### Added
+
+- 添加前后端单元测试（Vitest + testify）
+- Web 组件化架构：拆分 App.vue 为 7 个可复用组件和 3 个 composables
+- GitHub Actions 测试工作流
+
+### Changed
+
+- 将 HTTP 框架从 net/http 迁移到 Gin
+- 统一 GitHub Actions 中的 Node (24) 和 Go (1.22) 版本
+- 添加中文注释提升代码可读性
+
+### Fixed
+
+- 修复 Dockerfile 缺少 go.sum 导致的构建失败
+
 ## [v0.1.4] - 2026-02-14
 
 ### Added
@@ -60,7 +78,8 @@ All notable changes to this project will be documented in this file.
 ### Changed
 - 更新 README 与构建/开发脚本，以适配 Go + Vue 方案。
 
-[Unreleased]: https://github.com/krissss/file-browser/compare/v0.1.4...HEAD
+[Unreleased]: https://github.com/krissss/file-browser/compare/v0.2.0...HEAD
+[v0.2.0]: https://github.com/krissss/file-browser/compare/v0.1.4...v0.2.0
 [v0.1.4]: https://github.com/krissss/file-browser/compare/v0.1.3...v0.1.4
 [v0.1.3]: https://github.com/krissss/file-browser/compare/v0.1.2...v0.1.3
 [v0.1.2]: https://github.com/krissss/file-browser/compare/v0.1.1...v0.1.2
