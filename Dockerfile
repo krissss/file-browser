@@ -7,7 +7,7 @@ RUN corepack enable && mkdir -p /app/internal/server/web/dist \
 
 FROM golang:1.25-alpine AS build
 WORKDIR /app
-COPY go.mod ./
+COPY go.mod go.sum ./
 COPY cmd ./cmd
 COPY internal ./internal
 COPY --from=web /app/internal/server/web/dist ./internal/server/web/dist
