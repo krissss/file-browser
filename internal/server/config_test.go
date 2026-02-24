@@ -2,14 +2,16 @@ package server
 
 import (
 	"testing"
+
+	"github.com/stretchr/testify/assert"
 )
 
 func TestParseBytes(t *testing.T) {
 	tests := []struct {
-		name     string
-		input    string
-		expected int64
-		hasError bool
+		name        string
+		input       string
+		expected    int64
+		expectError bool
 	}{
 		{"empty string", "", 0, true},
 		{"zero", "0", 0, false},
@@ -32,17 +34,12 @@ func TestParseBytes(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			result, err := parseBytes(tt.input)
-			if tt.hasError {
-				if err == nil {
-					t.Errorf("parseBytes(%q) expected error, got nil", tt.input)
-				}
+
+			if tt.expectError {
+				assert.Error(t, err)
 			} else {
-				if err != nil {
-					t.Errorf("parseBytes(%q) unexpected error: %v", tt.input, err)
-				}
-				if result != tt.expected {
-					t.Errorf("parseBytes(%q) = %d, want %d", tt.input, result, tt.expected)
-				}
+				assert.NoError(t, err)
+				assert.Equal(t, tt.expected, result)
 			}
 		})
 	}
@@ -55,28 +52,25 @@ func TestConfigAddr(t *testing.T) {
 		expected string
 	}{
 		{
-			name: "default values",
-			cfg:  Config{Host: "127.0.0.1", Port: 3000},
+			name:     "default values",
+			cfg:      Config{Host: "127.0.0.1", Port: 3000},
 			expected: "127.0.0.1:3000",
 		},
 		{
-			name: "custom values",
-			cfg:  Config{Host: "0.0.0.0", Port: 8080},
+			name:     "custom values",
+			cfg:      Config{Host: "0.0.0.0", Port: 8080},
 			expected: "0.0.0.0:8080",
 		},
 		{
-			name: "localhost",
-			cfg:  Config{Host: "localhost", Port: 5000},
+			name:     "localhost",
+			cfg:      Config{Host: "localhost", Port: 5000},
 			expected: "localhost:5000",
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			result := tt.cfg.Addr()
-			if result != tt.expected {
-				t.Errorf("Config.Addr() = %s, want %s", result, tt.expected)
-			}
+			assert.Equal(t, tt.expected, tt.cfg.Addr())
 		})
 	}
 }

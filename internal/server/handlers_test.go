@@ -8,296 +8,175 @@ import (
 	"testing"
 
 	"github.com/gin-gonic/gin"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+	"github.com/stretchr/testify/suite"
 )
 
 func init() {
 	gin.SetMode(gin.TestMode)
 }
 
-func setupTestServer(t *testing.T) (*Server, string) {
-	t.Helper()
+// HandlerTestSuite 使用 testify suite 管理测试生命周期
+type HandlerTestSuite struct {
+	suite.Suite
+	server *Server
+	tmpDir string
+	router *gin.Engine
+}
 
-	// Create a temporary directory for testing
+// SetupSuite 在所有测试之前运行
+func (s *HandlerTestSuite) SetupSuite() {
+	// 创建临时目录
 	tmpDir, err := os.MkdirTemp("", "file-browser-handler-test-*")
-	if err != nil {
-		t.Fatalf("failed to create temp dir: %v", err)
-	}
+	require.NoError(s.T(), err)
+	s.tmpDir = tmpDir
 
-	// Create test structure
-	os.Mkdir(filepath.Join(tmpDir, "subdir"), 0755)
-	os.WriteFile(filepath.Join(tmpDir, "test.txt"), []byte("hello world"), 0644)
-	os.WriteFile(filepath.Join(tmpDir, "subdir", "nested.txt"), []byte("nested content"), 0644)
+	// 创建测试文件结构
+	require.NoError(s.T(), os.Mkdir(filepath.Join(tmpDir, "subdir"), 0755))
+	require.NoError(s.T(), os.WriteFile(filepath.Join(tmpDir, "test.txt"), []byte("hello world"), 0644))
+	require.NoError(s.T(), os.WriteFile(filepath.Join(tmpDir, "subdir", "nested.txt"), []byte("nested content"), 0644))
 
+	// 创建服务器
 	server, err := New(Config{
 		Root:       tmpDir,
 		Host:       "127.0.0.1",
 		Port:       3000,
 		PreviewMax: 1024 * 1024,
 	})
-	if err != nil {
-		os.RemoveAll(tmpDir)
-		t.Fatalf("failed to create server: %v", err)
-	}
-
-	return server, tmpDir
+	require.NoError(s.T(), err)
+	s.server = server
+	s.router = server.Handler()
 }
 
-func TestHandleHealth(t *testing.T) {
-	server, tmpDir := setupTestServer(t)
-	defer os.RemoveAll(tmpDir)
+// TearDownSuite 在所有测试之后运行
+func (s *HandlerTestSuite) TearDownSuite() {
+	if s.tmpDir != "" {
+		assert.NoError(s.T(), os.RemoveAll(s.tmpDir))
+	}
+}
 
-	r := server.Handler()
-	req := httptest.NewRequest(http.MethodGet, "/healthz", nil)
+// makeRequest 辅助函数
+func (s *HandlerTestSuite) makeRequest(method, url string) *httptest.ResponseRecorder {
+	req := httptest.NewRequest(method, url, nil)
 	w := httptest.NewRecorder()
-
-	r.ServeHTTP(w, req)
-
-	if w.Code != http.StatusOK {
-		t.Errorf("handleHealth status = %d, want %d", w.Code, http.StatusOK)
-	}
-
-	expected := `{"status":"ok"}`
-	if w.Body.String() != expected {
-		t.Errorf("handleHealth body = %q, want %q", w.Body.String(), expected)
-	}
+	s.router.ServeHTTP(w, req)
+	return w
 }
 
-func TestHandleFiles(t *testing.T) {
-	server, tmpDir := setupTestServer(t)
-	defer os.RemoveAll(tmpDir)
+func (s *HandlerTestSuite) TestHandleHealth() {
+	w := s.makeRequest(http.MethodGet, "/healthz")
 
-	tests := []struct {
-		name       string
-		path       string
-		wantStatus int
-		checkBody  bool
-	}{
-		{
-			name:       "root directory",
-			path:       "/",
-			wantStatus: http.StatusOK,
-			checkBody:  true,
-		},
-		{
-			name:       "subdirectory",
-			path:       "/subdir",
-			wantStatus: http.StatusOK,
-			checkBody:  true,
-		},
-		{
-			name:       "non-existent directory",
-			path:       "/nonexistent",
-			wantStatus: http.StatusNotFound,
-			checkBody:  false,
-		},
-	}
-
-	r := server.Handler()
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			url := "/api/files?path=" + tt.path
-			req := httptest.NewRequest(http.MethodGet, url, nil)
-			w := httptest.NewRecorder()
-
-			r.ServeHTTP(w, req)
-
-			if w.Code != tt.wantStatus {
-				t.Errorf("handleFiles status = %d, want %d, body: %s", w.Code, tt.wantStatus, w.Body.String())
-			}
-
-			if tt.checkBody && w.Code == http.StatusOK {
-				// Check that response is valid JSON array
-				body := w.Body.String()
-				if body == "" {
-					t.Error("handleFiles returned empty body")
-				}
-			}
-		})
-	}
+	assert.Equal(s.T(), http.StatusOK, w.Code)
+	assert.JSONEq(s.T(), `{"status":"ok"}`, w.Body.String())
 }
 
-func TestHandlePreview(t *testing.T) {
-	server, tmpDir := setupTestServer(t)
-	defer os.RemoveAll(tmpDir)
+func (s *HandlerTestSuite) TestHandleFiles_RootDirectory() {
+	w := s.makeRequest(http.MethodGet, "/api/files?path=/")
 
-	r := server.Handler()
-
-	tests := []struct {
-		name       string
-		path       string
-		offset     string
-		limit      string
-		wantStatus int
-	}{
-		{
-			name:       "text file",
-			path:       "/test.txt",
-			wantStatus: http.StatusOK,
-		},
-		{
-			name:       "nested file",
-			path:       "/subdir/nested.txt",
-			wantStatus: http.StatusOK,
-		},
-		{
-			name:       "with offset and limit",
-			path:       "/test.txt",
-			offset:     "0",
-			limit:      "5",
-			wantStatus: http.StatusOK,
-		},
-		{
-			name:       "directory instead of file",
-			path:       "/subdir",
-			wantStatus: http.StatusBadRequest,
-		},
-		{
-			name:       "non-existent file",
-			path:       "/nonexistent.txt",
-			wantStatus: http.StatusNotFound,
-		},
-		{
-			name:       "invalid offset",
-			path:       "/test.txt",
-			offset:     "invalid",
-			wantStatus: http.StatusBadRequest,
-		},
-		{
-			name:       "negative offset",
-			path:       "/test.txt",
-			offset:     "-1",
-			wantStatus: http.StatusBadRequest,
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			url := "/api/preview?path=" + tt.path
-			if tt.offset != "" {
-				url += "&offset=" + tt.offset
-			}
-			if tt.limit != "" {
-				url += "&limit=" + tt.limit
-			}
-
-			req := httptest.NewRequest(http.MethodGet, url, nil)
-			w := httptest.NewRecorder()
-
-			r.ServeHTTP(w, req)
-
-			if w.Code != tt.wantStatus {
-				t.Errorf("handlePreview status = %d, want %d, body: %s", w.Code, tt.wantStatus, w.Body.String())
-			}
-		})
-	}
+	assert.Equal(s.T(), http.StatusOK, w.Code)
+	assert.NotEmpty(s.T(), w.Body.String())
+	// 验证返回的是 JSON 数组
+	assert.JSONEq(s.T(), w.Body.String(), w.Body.String()) // 验证是有效 JSON
 }
 
-func TestHandleDownload(t *testing.T) {
-	server, tmpDir := setupTestServer(t)
-	defer os.RemoveAll(tmpDir)
+func (s *HandlerTestSuite) TestHandleFiles_Subdirectory() {
+	w := s.makeRequest(http.MethodGet, "/api/files?path=/subdir")
 
-	r := server.Handler()
-
-	tests := []struct {
-		name            string
-		path            string
-		wantStatus      int
-		checkAttachment bool
-	}{
-		{
-			name:            "download file",
-			path:            "/test.txt",
-			wantStatus:      http.StatusOK,
-			checkAttachment: true,
-		},
-		{
-			name:       "non-existent file",
-			path:       "/nonexistent.txt",
-			wantStatus: http.StatusNotFound,
-		},
-		{
-			name:       "directory",
-			path:       "/subdir",
-			wantStatus: http.StatusBadRequest,
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			req := httptest.NewRequest(http.MethodGet, "/api/download?path="+tt.path, nil)
-			w := httptest.NewRecorder()
-
-			r.ServeHTTP(w, req)
-
-			if w.Code != tt.wantStatus {
-				t.Errorf("handleDownload status = %d, want %d", w.Code, tt.wantStatus)
-			}
-
-			if tt.checkAttachment {
-				disposition := w.Header().Get("Content-Disposition")
-				if disposition == "" {
-					t.Error("handleDownload missing Content-Disposition header")
-				}
-			}
-		})
-	}
+	assert.Equal(s.T(), http.StatusOK, w.Code)
 }
 
-func TestHandleSearch(t *testing.T) {
-	server, tmpDir := setupTestServer(t)
-	defer os.RemoveAll(tmpDir)
+func (s *HandlerTestSuite) TestHandleFiles_NonExistent() {
+	w := s.makeRequest(http.MethodGet, "/api/files?path=/nonexistent")
 
-	r := server.Handler()
-
-	tests := []struct {
-		name       string
-		path       string
-		query      string
-		recursive  string
-		wantStatus int
-	}{
-		{
-			name:       "search for test",
-			path:       "/",
-			query:      "test",
-			wantStatus: http.StatusOK,
-		},
-		{
-			name:       "empty query",
-			path:       "/",
-			query:      "",
-			wantStatus: http.StatusOK,
-		},
-		{
-			name:       "recursive search",
-			path:       "/",
-			query:      "nested",
-			recursive:  "true",
-			wantStatus: http.StatusOK,
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			url := "/api/search?path=" + tt.path + "&q=" + tt.query
-			if tt.recursive != "" {
-				url += "&recursive=" + tt.recursive
-			}
-
-			req := httptest.NewRequest(http.MethodGet, url, nil)
-			w := httptest.NewRecorder()
-
-			r.ServeHTTP(w, req)
-
-			if w.Code != tt.wantStatus {
-				t.Errorf("handleSearch status = %d, want %d, body: %s", w.Code, tt.wantStatus, w.Body.String())
-			}
-		})
-	}
+	assert.Equal(s.T(), http.StatusNotFound, w.Code)
 }
 
-func TestStatusFromErr(t *testing.T) {
+func (s *HandlerTestSuite) TestHandlePreview_TextFile() {
+	w := s.makeRequest(http.MethodGet, "/api/preview?path=/test.txt")
+
+	assert.Equal(s.T(), http.StatusOK, w.Code)
+	assert.Contains(s.T(), w.Body.String(), "content")
+	assert.Contains(s.T(), w.Body.String(), "hello world")
+}
+
+func (s *HandlerTestSuite) TestHandlePreview_NestedFile() {
+	w := s.makeRequest(http.MethodGet, "/api/preview?path=/subdir/nested.txt")
+
+	assert.Equal(s.T(), http.StatusOK, w.Code)
+	assert.Contains(s.T(), w.Body.String(), "nested content")
+}
+
+func (s *HandlerTestSuite) TestHandlePreview_WithOffsetAndLimit() {
+	w := s.makeRequest(http.MethodGet, "/api/preview?path=/test.txt&offset=0&limit=5")
+
+	assert.Equal(s.T(), http.StatusOK, w.Code)
+}
+
+func (s *HandlerTestSuite) TestHandlePreview_Directory() {
+	w := s.makeRequest(http.MethodGet, "/api/preview?path=/subdir")
+
+	assert.Equal(s.T(), http.StatusBadRequest, w.Code)
+}
+
+func (s *HandlerTestSuite) TestHandlePreview_NonExistent() {
+	w := s.makeRequest(http.MethodGet, "/api/preview?path=/nonexistent.txt")
+
+	assert.Equal(s.T(), http.StatusNotFound, w.Code)
+}
+
+func (s *HandlerTestSuite) TestHandlePreview_InvalidOffset() {
+	w := s.makeRequest(http.MethodGet, "/api/preview?path=/test.txt&offset=invalid")
+
+	assert.Equal(s.T(), http.StatusBadRequest, w.Code)
+}
+
+func (s *HandlerTestSuite) TestHandlePreview_NegativeOffset() {
+	w := s.makeRequest(http.MethodGet, "/api/preview?path=/test.txt&offset=-1")
+
+	assert.Equal(s.T(), http.StatusBadRequest, w.Code)
+}
+
+func (s *HandlerTestSuite) TestHandleDownload_File() {
+	w := s.makeRequest(http.MethodGet, "/api/download?path=/test.txt")
+
+	assert.Equal(s.T(), http.StatusOK, w.Code)
+	assert.Contains(s.T(), w.Header().Get("Content-Disposition"), "attachment")
+	assert.Contains(s.T(), w.Header().Get("Content-Disposition"), "test.txt")
+}
+
+func (s *HandlerTestSuite) TestHandleDownload_NonExistent() {
+	w := s.makeRequest(http.MethodGet, "/api/download?path=/nonexistent.txt")
+
+	assert.Equal(s.T(), http.StatusNotFound, w.Code)
+}
+
+func (s *HandlerTestSuite) TestHandleDownload_Directory() {
+	w := s.makeRequest(http.MethodGet, "/api/download?path=/subdir")
+
+	assert.Equal(s.T(), http.StatusBadRequest, w.Code)
+}
+
+func (s *HandlerTestSuite) TestHandleSearch_WithQuery() {
+	w := s.makeRequest(http.MethodGet, "/api/search?path=/&q=test")
+
+	assert.Equal(s.T(), http.StatusOK, w.Code)
+}
+
+func (s *HandlerTestSuite) TestHandleSearch_EmptyQuery() {
+	w := s.makeRequest(http.MethodGet, "/api/search?path=/&q=")
+
+	assert.Equal(s.T(), http.StatusOK, w.Code)
+	assert.JSONEq(s.T(), `[]`, w.Body.String())
+}
+
+func (s *HandlerTestSuite) TestHandleSearch_Recursive() {
+	w := s.makeRequest(http.MethodGet, "/api/search?path=/&q=nested&recursive=true")
+
+	assert.Equal(s.T(), http.StatusOK, w.Code)
+}
+
+func (s *HandlerTestSuite) TestStatusFromErr() {
 	tests := []struct {
 		name     string
 		err      error
@@ -306,14 +185,17 @@ func TestStatusFromErr(t *testing.T) {
 		{"nil error", nil, http.StatusOK},
 		{"access denied", errAccessDenied, http.StatusForbidden},
 		{"not exist", os.ErrNotExist, http.StatusNotFound},
+		{"other error", assert.AnError, http.StatusBadRequest},
 	}
 
 	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			result := statusFromErr(tt.err)
-			if result != tt.expected {
-				t.Errorf("statusFromErr(%v) = %d, want %d", tt.err, result, tt.expected)
-			}
+		s.Run(tt.name, func() {
+			assert.Equal(s.T(), tt.expected, statusFromErr(tt.err))
 		})
 	}
+}
+
+// 运行 suite
+func TestHandlerSuite(t *testing.T) {
+	suite.Run(t, new(HandlerTestSuite))
 }
