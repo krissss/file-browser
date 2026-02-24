@@ -1,3 +1,6 @@
+/**
+ * 文件类型工具函数测试
+ */
 import { describe, it, expect } from 'vitest';
 import {
   fileExtensionFromName,
@@ -27,44 +30,44 @@ import {
 } from 'lucide-vue-next';
 
 describe('fileExtensionFromName', () => {
-  it('should extract extension from simple filename', () => {
+  it('从简单文件名提取扩展名', () => {
     expect(fileExtensionFromName('test.txt')).toBe('txt');
     expect(fileExtensionFromName('app.ts')).toBe('ts');
     expect(fileExtensionFromName('index.html')).toBe('html');
   });
 
-  it('should handle multiple dots', () => {
+  it('处理多个点号的文件名', () => {
     expect(fileExtensionFromName('file.test.ts')).toBe('ts');
     expect(fileExtensionFromName('app.config.json')).toBe('json');
   });
 
-  it('should handle special files', () => {
+  it('处理特殊文件（Dockerfile、Makefile）', () => {
     expect(fileExtensionFromName('Dockerfile')).toBe('dockerfile');
     expect(fileExtensionFromName('dockerfile.dev')).toBe('dockerfile');
     expect(fileExtensionFromName('Makefile')).toBe('makefile');
     expect(fileExtensionFromName('makefile.prod')).toBe('makefile');
   });
 
-  it('should handle hidden files', () => {
+  it('处理隐藏文件', () => {
     expect(fileExtensionFromName('.gitignore')).toBe('gitignore');
     expect(fileExtensionFromName('.env')).toBe('env');
     expect(fileExtensionFromName('.env.local')).toBe('local');
   });
 
-  it('should handle files without extension', () => {
+  it('处理无扩展名的文件', () => {
     expect(fileExtensionFromName('README')).toBe('');
     expect(fileExtensionFromName('file.')).toBe('');
     expect(fileExtensionFromName('.')).toBe('');
   });
 
-  it('should be case insensitive', () => {
+  it('大小写不敏感', () => {
     expect(fileExtensionFromName('FILE.TXT')).toBe('txt');
     expect(fileExtensionFromName('DOCKERFILE')).toBe('dockerfile');
   });
 });
 
 describe('entryExtension', () => {
-  it('should return explicit extension if present', () => {
+  it('优先返回显式指定的扩展名', () => {
     const entry: FileEntry = {
       name: 'test.txt',
       path: '/test.txt',
@@ -76,7 +79,7 @@ describe('entryExtension', () => {
     expect(entryExtension(entry)).toBe('custom');
   });
 
-  it('should extract extension from name if not provided', () => {
+  it('从文件名提取扩展名（未显式指定时）', () => {
     const entry: FileEntry = {
       name: 'test.ts',
       path: '/test.ts',
@@ -89,21 +92,21 @@ describe('entryExtension', () => {
 });
 
 describe('isMarkdown', () => {
-  it('should return true for markdown extensions', () => {
+  it('识别 Markdown 扩展名', () => {
     expect(isMarkdown('md')).toBe(true);
     expect(isMarkdown('markdown')).toBe(true);
     expect(isMarkdown('MD')).toBe(true);
     expect(isMarkdown('MARKDOWN')).toBe(true);
   });
 
-  it('should return false for non-markdown extensions', () => {
+  it('非 Markdown 扩展名返回 false', () => {
     expect(isMarkdown('txt')).toBe(false);
     expect(isMarkdown('html')).toBe(false);
   });
 });
 
 describe('isImage', () => {
-  it('should return true for image extensions', () => {
+  it('识别图片扩展名', () => {
     expect(isImage('jpg')).toBe(true);
     expect(isImage('jpeg')).toBe(true);
     expect(isImage('png')).toBe(true);
@@ -114,20 +117,20 @@ describe('isImage', () => {
     expect(isImage('ico')).toBe(true);
   });
 
-  it('should return false for non-image extensions', () => {
+  it('非图片扩展名返回 false', () => {
     expect(isImage('txt')).toBe(false);
     expect(isImage('pdf')).toBe(false);
     expect(isImage('mp4')).toBe(false);
   });
 
-  it('should be case insensitive', () => {
+  it('大小写不敏感', () => {
     expect(isImage('JPG')).toBe(true);
     expect(isImage('PNG')).toBe(true);
   });
 });
 
 describe('isTextFile', () => {
-  it('should return true for text file extensions', () => {
+  it('识别文本文件扩展名', () => {
     expect(isTextFile('txt')).toBe(true);
     expect(isTextFile('md')).toBe(true);
     expect(isTextFile('json')).toBe(true);
@@ -140,7 +143,7 @@ describe('isTextFile', () => {
     expect(isTextFile('css')).toBe(true);
   });
 
-  it('should return false for non-text file extensions', () => {
+  it('非文本文件扩展名返回 false', () => {
     expect(isTextFile('exe')).toBe(false);
     expect(isTextFile('bin')).toBe(false);
     expect(isTextFile('dll')).toBe(false);
@@ -148,7 +151,7 @@ describe('isTextFile', () => {
 });
 
 describe('isBinaryFile', () => {
-  it('should return false for image files', () => {
+  it('图片文件返回 false（可预览）', () => {
     const entry: FileEntry = {
       name: 'image.png',
       path: '/image.png',
@@ -159,7 +162,7 @@ describe('isBinaryFile', () => {
     expect(isBinaryFile(entry)).toBe(false);
   });
 
-  it('should return false for text files', () => {
+  it('文本文件返回 false', () => {
     const entry: FileEntry = {
       name: 'script.ts',
       path: '/script.ts',
@@ -170,7 +173,7 @@ describe('isBinaryFile', () => {
     expect(isBinaryFile(entry)).toBe(false);
   });
 
-  it('should return true for binary files', () => {
+  it('二进制文件返回 true', () => {
     const entry: FileEntry = {
       name: 'program.exe',
       path: '/program.exe',
@@ -183,7 +186,7 @@ describe('isBinaryFile', () => {
 });
 
 describe('isCode', () => {
-  it('should return true for code extensions', () => {
+  it('识别代码文件扩展名', () => {
     expect(isCode('js')).toBe(true);
     expect(isCode('ts')).toBe(true);
     expect(isCode('py')).toBe(true);
@@ -194,21 +197,21 @@ describe('isCode', () => {
     expect(isCode('cpp')).toBe(true);
   });
 
-  it('should return true for special files', () => {
+  it('特殊文件（Dockerfile、Makefile）识别为代码', () => {
     expect(isCode('', 'Dockerfile')).toBe(true);
     expect(isCode('', 'dockerfile.dev')).toBe(true);
     expect(isCode('', 'Makefile')).toBe(true);
     expect(isCode('', 'makefile.prod')).toBe(true);
   });
 
-  it('should return false for non-code extensions', () => {
+  it('非代码扩展名返回 false', () => {
     expect(isCode('exe')).toBe(false);
     expect(isCode('bin')).toBe(false);
   });
 });
 
 describe('fileIcon', () => {
-  it('should return Folder for directories', () => {
+  it('目录返回 Folder 图标', () => {
     const entry: FileEntry = {
       name: 'src',
       path: '/src',
@@ -219,7 +222,7 @@ describe('fileIcon', () => {
     expect(fileIcon(entry)).toBe(Folder);
   });
 
-  it('should return FileImage for image files', () => {
+  it('图片文件返回 FileImage 图标', () => {
     const entry: FileEntry = {
       name: 'photo.png',
       path: '/photo.png',
@@ -230,7 +233,7 @@ describe('fileIcon', () => {
     expect(fileIcon(entry)).toBe(FileImage);
   });
 
-  it('should return FileJson for JSON files', () => {
+  it('JSON 文件返回 FileJson 图标', () => {
     const entry: FileEntry = {
       name: 'package.json',
       path: '/package.json',
@@ -241,7 +244,7 @@ describe('fileIcon', () => {
     expect(fileIcon(entry)).toBe(FileJson);
   });
 
-  it('should return FileAudio for audio files', () => {
+  it('音频文件返回 FileAudio 图标', () => {
     const entry: FileEntry = {
       name: 'music.mp3',
       path: '/music.mp3',
@@ -252,7 +255,7 @@ describe('fileIcon', () => {
     expect(fileIcon(entry)).toBe(FileAudio);
   });
 
-  it('should return FileVideo for video files', () => {
+  it('视频文件返回 FileVideo 图标', () => {
     const entry: FileEntry = {
       name: 'video.mp4',
       path: '/video.mp4',
@@ -263,7 +266,7 @@ describe('fileIcon', () => {
     expect(fileIcon(entry)).toBe(FileVideo);
   });
 
-  it('should return FileArchive for archive files', () => {
+  it('压缩文件返回 FileArchive 图标', () => {
     const entry: FileEntry = {
       name: 'archive.zip',
       path: '/archive.zip',
@@ -274,7 +277,7 @@ describe('fileIcon', () => {
     expect(fileIcon(entry)).toBe(FileArchive);
   });
 
-  it('should return File for unknown file types', () => {
+  it('未知文件类型返回 File 图标', () => {
     const entry: FileEntry = {
       name: 'unknown.xyz',
       path: '/unknown.xyz',
@@ -285,7 +288,7 @@ describe('fileIcon', () => {
     expect(fileIcon(entry)).toBe(File);
   });
 
-  it('should return correct icon for TypeScript files', () => {
+  it('TypeScript 文件返回 FileCode2 图标', () => {
     const entry: FileEntry = {
       name: 'app.ts',
       path: '/app.ts',
@@ -296,7 +299,7 @@ describe('fileIcon', () => {
     expect(fileIcon(entry)).toBe(FileCode2);
   });
 
-  it('should return FileCog for Dockerfile', () => {
+  it('Dockerfile 返回 FileCog 图标', () => {
     const entry: FileEntry = {
       name: 'Dockerfile',
       path: '/Dockerfile',
