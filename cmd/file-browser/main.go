@@ -1,15 +1,16 @@
+// file-browser 文件浏览器入口程序
 package main
 
 import (
 	"fmt"
 	"log"
-	"net/http"
 	"reflect"
 	"strings"
 
 	"file-browser/internal/server"
 )
 
+// formatConfig 将配置格式化为可读字符串，用于日志输出
 func formatConfig(cfg server.Config) string {
 	value := reflect.ValueOf(cfg)
 	typ := value.Type()
@@ -22,6 +23,8 @@ func formatConfig(cfg server.Config) string {
 	return strings.Join(parts, " ")
 }
 
+// toKebab 将驼峰命名转换为 kebab-case
+// 例如：PreviewMax -> preview-max
 func toKebab(input string) string {
 	var b strings.Builder
 	for i, r := range input {
@@ -34,18 +37,22 @@ func toKebab(input string) string {
 }
 
 func main() {
+	// 解析命令行配置
 	cfg, err := server.ParseConfig()
 	if err != nil {
 		log.Fatal(err)
 	}
 
+	// 创建服务器实例
 	srv, err := server.New(cfg)
 	if err != nil {
 		log.Fatal(err)
 	}
 
+	// 输出配置信息并启动服务
 	log.Printf("file-browser: %s", formatConfig(cfg))
-	if err := http.ListenAndServe(cfg.Addr(), srv.Handler()); err != nil {
+	r := srv.Handler()
+	if err := r.Run(cfg.Addr()); err != nil {
 		log.Fatal(err)
 	}
 }
