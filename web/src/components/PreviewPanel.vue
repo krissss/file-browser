@@ -12,6 +12,12 @@ import { apiUrl } from '../api';
 import PreviewToolbar from './PreviewToolbar.vue';
 import type { PreviewState } from '../composables/usePreview';
 
+/** 获取 API URL（支持子路径部署） */
+function apiUrl(path: string): string {
+  const base = import.meta.env.BASE_URL;
+  return `${base}${path}`.replace(/\/+/g, '/');
+}
+
 const props = defineProps<{
   entry: FileEntry | null;
   preview: PreviewState;

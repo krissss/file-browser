@@ -9,6 +9,12 @@ import { highlightCode, highlightMarkdownBlocks } from '../highlight';
 import { entryExtension, isBinaryFile, isCode, isImage, isMarkdown, type FileEntry } from '../file-types';
 import { apiUrl } from '../api';
 
+/** 获取 API URL（支持子路径部署） */
+function apiUrl(path: string): string {
+  const base = import.meta.env.BASE_URL;
+  return `${base}${path}`.replace(/\/+/g, '/');
+}
+
 /** 预览状态 */
 export interface PreviewState {
   content: string;
