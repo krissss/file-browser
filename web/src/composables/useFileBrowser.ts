@@ -6,6 +6,12 @@
 import { reactive, computed, ref } from 'vue';
 import { fileExtensionFromName, isImage, type FileEntry } from '../file-types';
 
+/** 获取 API URL（支持子路径部署） */
+function apiUrl(path: string): string {
+  const base = import.meta.env.BASE_URL;
+  return `${base}${path}`.replace(/\/+/g, '/');
+}
+
 /** 文件浏览状态 */
 export interface BrowserState {
   currentPath: string;
@@ -61,7 +67,7 @@ export function useFileBrowser() {
   /** 加载目录内容 */
   async function loadEntries(path: string) {
     state.currentPath = path;
-    const response = await fetch(`/api/files?path=${encodeURIComponent(path)}`);
+    const response = await fetch(apiUrl('/api/files?path=' + encodeURIComponent(path)));
     if (!response.ok) {
       throw new Error('无法加载目录');
     }
@@ -97,7 +103,7 @@ export function useFileBrowser() {
 
     const recursiveParam = search.recursive ? 'true' : 'false';
     const response = await fetch(
-      `/api/search?path=${encodeURIComponent(state.currentPath)}&q=${encodeURIComponent(search.query)}&recursive=${recursiveParam}`
+      apiUrl('/api/search?path=' + encodeURIComponent(state.currentPath) + '&q=' + encodeURIComponent(search.query) + '&recursive=' + recursiveParam)
     );
 
     if (response.ok) {

@@ -8,6 +8,12 @@ import { renderMarkdown } from '../markdown';
 import { highlightCode, highlightMarkdownBlocks } from '../highlight';
 import { entryExtension, isBinaryFile, isCode, isImage, isMarkdown, type FileEntry } from '../file-types';
 
+/** 获取 API URL（支持子路径部署） */
+function apiUrl(path: string): string {
+  const base = import.meta.env.BASE_URL;
+  return `${base}${path}`.replace(/\/+/g, '/');
+}
+
 /** 预览状态 */
 export interface PreviewState {
   content: string;
@@ -104,8 +110,8 @@ export function usePreview() {
     const offset = append ? preview.offset : 0;
     const limit = append && preview.limit > 0 ? preview.limit : 0;
     const url = offset > 0
-      ? `/api/preview?path=${encodeURIComponent(path)}&offset=${offset}&limit=${limit || chunkSize}`
-      : `/api/preview?path=${encodeURIComponent(path)}`;
+      ? apiUrl('/api/preview?path=' + encodeURIComponent(path) + '&offset=' + offset + '&limit=' + (limit || chunkSize))
+      : apiUrl('/api/preview?path=' + encodeURIComponent(path));
 
     const response = await fetch(url);
     if (response.status === 413) {
