@@ -49,7 +49,7 @@ func (s *Server) Handler() *gin.Engine {
 	r := gin.New()
 	r.Use(gin.Recovery()) // 恢复中间件，防止 panic 导致服务崩溃
 
-	// API 路由（Tailscale funnel 会去掉 base path 前缀，所以注册到根路径）
+	// API 路由
 	r.GET("/api/files", s.handleFiles)       // 获取目录内容
 	r.GET("/api/search", s.handleSearch)     // 搜索文件
 	r.GET("/api/preview", s.handlePreview)   // 预览文件内容
