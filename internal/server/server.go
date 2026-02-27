@@ -49,7 +49,7 @@ func (s *Server) Handler() *gin.Engine {
 	r := gin.New()
 	r.Use(gin.Recovery()) // 恢复中间件，防止 panic 导致服务崩溃
 
-	// API 路由
+	// API 路由（Tailscale funnel 会去掉 base path 前缀，所以注册到根路径）
 	r.GET("/api/files", s.handleFiles)       // 获取目录内容
 	r.GET("/api/search", s.handleSearch)     // 搜索文件
 	r.GET("/api/preview", s.handlePreview)   // 预览文件内容
@@ -66,7 +66,17 @@ func (s *Server) Handler() *gin.Engine {
 // handleStatic 处理静态文件请求和 SPA 路由回退
 // 对于不存在的路径，返回 index.html 让前端路由处理
 func (s *Server) handleStatic(c *gin.Context) {
-	requestPath := strings.TrimPrefix(path.Clean("/"+c.Request.URL.Path), "/")
+	requestPath := c.Request.URL.Path
+
+	// 如果有基础路径，去除前缀
+	if s.cfg.BasePath != "" {
+		basePath := s.cfg.BasePath
+		if strings.HasPrefix(requestPath, basePath) {
+			requestPath = strings.TrimPrefix(requestPath, basePath)
+		}
+	}
+
+	requestPath = strings.TrimPrefix(path.Clean("/"+requestPath), "/")
 
 	// 根路径直接返回 index.html
 	if requestPath == "" || requestPath == "." {
@@ -99,9 +109,22 @@ func (s *Server) handleStatic(c *gin.Context) {
 	httpServeContent(c, info.Name(), info.ModTime(), bytes.NewReader(data))
 }
 
-// serveIndex 返回 index.html 内容
+// serveIndex 返回 index.html 内容，动态替换 base path 占位符
 func (s *Server) serveIndex(c *gin.Context) {
-	c.Data(200, "text/html; charset=utf-8", s.index)
+	// 动态替换 __BASE_PATH__ 占位符
+	basePath := s.cfg.BasePath
+	if basePath == "" {
+		basePath = "/" // 根路径
+	} else if !strings.HasSuffix(basePath, "/") {
+		basePath += "/" // 确保有尾部斜杠
+	}
+
+	// 替换占位符
+	html := bytes.ReplaceAll(s.index,
+		[]byte("__BASE_PATH__/"),
+		[]byte(basePath))
+
+	c.Data(200, "text/html; charset=utf-8", html)
 }
 
 // errAccessDenied 路径遍历攻击防护错误

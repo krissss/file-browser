@@ -23,6 +23,7 @@ type Config struct {
 	Host       string // 监听地址
 	Port       int    // 监听端口
 	PreviewMax int64  // 文件预览最大字节数
+	BasePath   string // 基础路径（用于反向代理子路径部署，例如 /files）
 }
 
 // Addr 返回监听地址，格式为 host:port
@@ -47,6 +48,7 @@ func ParseConfig() (Config, error) {
 	fs.StringVar(&cfg.Host, "host", defaultHost, "host to bind")
 	fs.IntVar(&cfg.Port, "port", defaultPort, "port to listen on")
 	previewMax := fs.String("preview-max", "1MB", "max preview size (e.g. 1MB, 512KB)")
+	fs.StringVar(&cfg.BasePath, "base-path", "", "base path for reverse proxy deployment (e.g. /files)")
 
 	// 应用环境变量默认值（优先级低于命令行参数）
 	applyEnvDefaults(fs)
@@ -87,6 +89,9 @@ func ParseConfig() (Config, error) {
 		maxBytes = defaultPreviewMax
 	}
 	cfg.PreviewMax = maxBytes
+
+	// 规范化 BasePath
+	cfg.BasePath = normalizeBasePath(cfg.BasePath)
 
 	return cfg, nil
 }
@@ -148,4 +153,21 @@ func parseBytes(input string) (int64, error) {
 	}
 
 	return int64(parsed * float64(multiplier)), nil
+}
+
+// normalizeBasePath 规范化基础路径
+// 确保路径以 / 开头，不以 / 结尾
+// 空字符串或 "/" 返回空字符串（表示根路径）
+func normalizeBasePath(basePath string) string {
+	basePath = strings.TrimSpace(basePath)
+	if basePath == "" || basePath == "/" {
+		return ""
+	}
+	// 确保以 / 开头
+	if !strings.HasPrefix(basePath, "/") {
+		basePath = "/" + basePath
+	}
+	// 移除末尾的 /
+	basePath = strings.TrimSuffix(basePath, "/")
+	return basePath
 }

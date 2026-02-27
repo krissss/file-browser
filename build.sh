@@ -3,6 +3,9 @@ set -euo pipefail
 
 ROOT_DIR=$(cd "$(dirname "$0")" && pwd)
 
+# 接受 base path 参数，默认为 '/'
+BASE_PATH="${1:-/}"
+
 cd "$ROOT_DIR/web"
 
 if ! command -v pnpm >/dev/null 2>&1; then
@@ -11,7 +14,7 @@ if ! command -v pnpm >/dev/null 2>&1; then
 fi
 
 pnpm install
-pnpm run build
+VITE_BASE_PATH="$BASE_PATH" pnpm run build
 
 cd "$ROOT_DIR"
 
