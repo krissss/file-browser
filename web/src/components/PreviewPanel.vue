@@ -8,6 +8,7 @@ import { computed, ref, watch, nextTick } from 'vue';
 import { renderMarkdown } from '../markdown';
 import { highlightCode, highlightMarkdownBlocks } from '../highlight';
 import { entryExtension, isImage, isMarkdown, isCode, type FileEntry } from '../file-types';
+import { apiUrl } from '../api';
 import PreviewToolbar from './PreviewToolbar.vue';
 import type { PreviewState } from '../composables/usePreview';
 
@@ -41,14 +42,14 @@ const previewMode = computed(() => {
 /** 下载链接 */
 const downloadUrl = computed(() => {
   if (!props.entry || props.entry.type !== 'file') return null;
-  return `/api/download?path=${encodeURIComponent(props.entry.path)}`;
+  return apiUrl('/api/download?path=' + encodeURIComponent(props.entry.path));
 });
 
 /** 图片链接 */
 const imageUrl = computed(() => {
   if (!props.entry || props.entry.type !== 'file') return undefined;
   if (!isImage(entryExtension(props.entry))) return undefined;
-  return `/api/image?path=${encodeURIComponent(props.entry.path)}`;
+  return apiUrl('/api/image?path=' + encodeURIComponent(props.entry.path));
 });
 
 /** 获取代码语言 */
