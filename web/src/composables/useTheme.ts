@@ -12,7 +12,7 @@ const markdownThemeId = 'markdown-theme';
 
 /** 设置 highlight.js 主题样式表 */
 function setHljsTheme(theme: 'light' | 'dark') {
-  const href = theme === 'dark' ? '/hljs-github-dark.css' : '/hljs-github.css';
+  const href = theme === 'dark' ? 'hljs-github-dark.css' : 'hljs-github.css';
   let link = document.getElementById(hljsThemeId) as HTMLLinkElement | null;
   if (!link) {
     link = document.createElement('link');
