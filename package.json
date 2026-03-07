@@ -1,0 +1,37 @@
+{
+  "name": "@krissss/file-browser",
+  "version": "0.0.0",
+  "description": "A single-binary file browser with web UI",
+  "license": "MIT",
+  "author": "kriss <462679766@qq.com>",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/krissss/file-browser.git"
+  },
+  "bugs": {
+    "url": "https://github.com/krissss/file-browser/issues"
+  },
+  "homepage": "https://github.com/krissss/file-browser#readme",
+  "bin": {
+    "file-browser": "./bin/file-browser"
+  },
+  "scripts": {
+    "postinstall": "node install.js"
+  },
+  "files": [
+    "bin/file-browser",
+    "install.js",
+    "LICENSE",
+    "README.md"
+  ],
+  "keywords": [
+    "file-browser",
+    "file-server",
+    "static-server",
+    "go"
+  ],
+  "engines": {
+    "node": ">=14"
+  },
+  "optionalDependencies": {}
+}

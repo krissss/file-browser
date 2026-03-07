@@ -1,0 +1,32 @@
+# Source code
+cmd/
+internal/
+web/
+runtime/
+go.mod
+go.sum
+
+# Development files
+.github/
+.idea/
+.playwright-cli/
+
+# Build scripts
+build.sh
+dev.sh
+.air.toml
+docker-compose.yml
+Dockerfile
+
+# Documentation
+AGENTS.md
+
+# Binary (will be downloaded on install)
+file-browser
+
+# Test files
+*.test.ts
+*.test.js
+
+# Config
+.env.example
