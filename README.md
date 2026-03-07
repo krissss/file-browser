@@ -6,7 +6,7 @@
 [![Release](https://img.shields.io/github/v/release/krissss/file-browser)](https://github.com/krissss/file-browser/releases/latest)
 [![Docker](https://img.shields.io/docker/v/krisss/file-browser?style=flat&logo=docker)](https://hub.docker.com/r/krisss/file-browser)
 [![Docker Pulls](https://img.shields.io/docker/pulls/krisss/file-browser?style=flat&logo=docker)](https://hub.docker.com/r/krisss/file-browser)
-[![GitHub Issues](https://img.shields.io/github/issues/krissss/file-browser)](https://github.com/krissss/file-browser/issues)
+[![npm](https://img.shields.io/npm/v/@krissss/file-browser?style=flat&logo=npm)](https://www.npmjs.com/package/@krissss/file-browser)
 
 一个单文件可执行的本地文件浏览器：Go 标准库后端 + Vue 3 前端，内嵌静态资源，`file-browser --path=./ --port=3000` 即可启动服务。
 
@@ -38,15 +38,24 @@ cd ..
 go build -o file-browser ./cmd/file-browser
 ```
 
-## 使用
+## 安装
 
-### 单文件运行
+### npm（推荐）
 
 ```bash
-./file-browser --path=./ --port=3000
+# 全局安装
+npm install -g @krissss/file-browser
+
+# 使用
+file-browser --path=./ --port=3000
+
+# 或使用 npx（无需安装）
+npx @krissss/file-browser --path=./ --port=3000
 ```
 
-访问 `http://127.0.0.1:3000`。
+### 下载二进制
+
+从 [Releases](https://github.com/krissss/file-browser/releases) 页面下载对应平台的二进制文件。
 
 ### Docker
 
@@ -60,6 +69,16 @@ docker run -d \
   -e FILE_BROWSER_PORT=3000 \
   krisss/file-browser:latest
 ```
+
+## 使用
+
+启动服务：
+
+```bash
+file-browser --path=./ --port=3000
+```
+
+访问 `http://127.0.0.1:3000`。
 
 ### 常用参数
 
