@@ -26,6 +26,27 @@ markdown.renderer.rules.link_open = function (tokens, idx, options, env, self) {
   return self.renderToken(tokens, idx, options);
 };
 
+// 自定义图片渲染：将路径转换为 /api/image?path=...
+markdown.renderer.rules.image = function (tokens, idx, options, env, self) {
+  const token = tokens[idx];
+  const srcIdx = token.attrIndex('src');
+  const altIdx = token.attrIndex('alt');
+
+  if (srcIdx >= 0) {
+    let src = token.attrs![srcIdx][1];
+    // 将相对/绝对路径转换为 API 路径
+    if (!src.startsWith('http') && !src.startsWith('data:')) {
+      // 确保路径以 / 开头
+      if (!src.startsWith('/')) {
+        src = '/' + src;
+      }
+      token.attrs![srcIdx][1] = '/api/image?path=' + encodeURIComponent(src);
+    }
+  }
+
+  return self.renderToken(tokens, idx, options);
+};
+
 /** HTML 转义，防止 XSS */
 function escapeHtml(text: string): string {
   return text
